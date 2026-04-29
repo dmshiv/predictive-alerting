@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# =============================================================================
+# WHAT  : Bootstrap script that runs on first VM boot.
+# WHY   : Installs Python, pulls the traffic generator code, sets up systemd.
+# HOW   : Templated by Terraform so it knows project/region/topic.
+# =============================================================================
+set -euxo pipefail
+
+apt-get update
+apt-get install -y python3 python3-pip git curl jq
+
+# Application directory
+mkdir -p /opt/sentinel
+cd /opt/sentinel
+
+# Pull the traffic generator (a small standalone script — uploaded via metadata or GCS by start.sh)
+gsutil cp gs://${project_id}-sentinel-${ "$" }{ENV_NAME:-dev}-code/traffic_generator.py /opt/sentinel/traffic_generator.py 2>/dev/null || \
+cat > /opt/sentinel/traffic_generator.py <<'PYEOF'
+# Placeholder — will be replaced by start.sh via gsutil cp.
+import time, os, sys
+print("Sentinel traffic generator placeholder; start.sh will replace this.")
+while True: time.sleep(60)
+PYEOF
+
+# Python deps.
+# IMPORTANT: pin google-auth<2.40 to avoid the broken `MdsMtlsAdapter` that
+# tries to mTLS-probe the metadata server's IP (no SNI hostname) and crashes
+# with `ValueError: check_hostname requires server_hostname`.
+# Also pin urllib3<2 so we don't pull pyopenssl/cryptography>=42 surprises.
+pip3 install --break-system-packages --upgrade \
+  "urllib3<2" requests certifi \
+  "google-auth==2.29.0" google-cloud-pubsub google-cloud-aiplatform
+
+# systemd unit
+cat > /etc/systemd/system/sentinel-loadgen.service <<UNITEOF
+[Unit]
+Description=Sentinel-Forecast traffic generator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Environment=GCP_PROJECT_ID=${project_id}
+Environment=GCP_REGION=${region}
+Environment=PUBSUB_TOPIC=${pubsub_topic}
+Environment=ENDPOINT_FULL=${endpoint_full}
+ExecStart=/usr/bin/python3 /opt/sentinel/traffic_generator.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+
+systemctl daemon-reload
+systemctl enable --now sentinel-loadgen

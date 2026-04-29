@@ -1,0 +1,15 @@
+# =============================================================================
+# WHAT  : Python deps for the dual-mode "traffic-gen / telemetry-collector".
+# WHY   : Tiny image - no ML libs. Just GCP SDKs + requests for HTTP load.
+# HOW   : `pip install -r requirements-traffic-gen.txt` inside traffic-gen.Dockerfile.
+# LAYMAN: Grocery list for the "noisy customer / audit clerk" robot.
+# =============================================================================
+google-cloud-pubsub==2.27.0       # publish raw-traffic + read it back
+google-cloud-bigquery==3.27.0     # collector mode writes to BigQuery
+google-cloud-monitoring==2.22.0
+google-cloud-logging==3.11.0
+google-cloud-storage==2.18.0
+requests==2.32.3                  # used by loadgen to hit /recommend
+PyYAML==6.0.2
+tenacity==9.0.0
+numpy==1.26.4

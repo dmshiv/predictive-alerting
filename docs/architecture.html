@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sentinel-Forecast — GCP Architecture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Iconify gives us the OFFICIAL Google Cloud hexagonal product icons -->
+<script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f6f8fc;
+  --panel: #ffffff;
+  --line: #c8d2e0;
+  --muted: #5f6b7a;
+  --ink: #1a2233;
+  --google-blue: #4285F4;
+  --google-green: #34A853;
+  --google-red: #EA4335;
+  --google-yellow: #FBBC04;
+  --lane-bg: #eef3fb;
+  --lane-border: #d4dfee;
+  --arrow: #2b6df0;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Google Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  padding: 32px 40px 64px;
+}
+h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.sub {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.legend .dot {
+  display: inline-block;
+  width: 10px; height: 10px; border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* ---------------- horizontal stage ---------------- */
+.stage {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(180px, 1fr));
+  gap: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px 22px 36px;
+  position: relative;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  padding-top: 36px;
+}
+.lane::before {
+  content: attr(data-title);
+  position: absolute;
+  top: 0; left: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lane::after {
+  content: "";
+  position: absolute;
+  top: 22px; left: 0; right: 0;
+  height: 1px;
+  background: var(--lane-border);
+}
+
+/* ---------------- node card ---------------- */
+.node {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(43, 109, 240, 0.18);
+  border-color: var(--google-blue);
+  z-index: 5;
+}
+.node iconify-icon {
+  font-size: 44px;
+  margin-bottom: 4px;
+}
+.node .name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.node .sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin: 2px 0 0;
+  font-family: 'Roboto Mono', monospace;
+  word-break: break-word;
+}
+.node .pin {
+  position: absolute;
+  top: -8px; right: -8px;
+  background: var(--arrow);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+}
+
+/* tooltip annotation */
+.note {
+  background: #f1f6ff;
+  border: 1px dashed #b8cdf3;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  color: #2a3957;
+  margin-top: 6px;
+  line-height: 1.35;
+  text-align: left;
+  width: 100%;
+}
+
+/* group block within a lane */
+.group {
+  border: 1.5px dashed #b8cdf3;
+  border-radius: 10px;
+  padding: 10px 8px 10px;
+  background: #fafcff;
+  position: relative;
+}
+.group::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -9px; left: 10px;
+  background: #fafcff;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #4a6ab8;
+}
+.group .node + .node { margin-top: 10px; }
+
+/* SVG flow overlay */
+.flow-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Bottom: cross-cutting bar */
+.crosscut {
+  margin-top: 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.crosscut .item {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--ink);
+}
+.crosscut iconify-icon { font-size: 26px; }
+
+/* legend dots */
+.dot.in   { background: var(--google-blue); }
+.dot.proc { background: var(--google-green); }
+.dot.data { background: var(--google-yellow); }
+.dot.ml   { background: #8e44ad; }
+.dot.act  { background: var(--google-red); }
+.dot.obs  { background: #00897b; }
+
+/* annotations panel */
+details.points {
+  margin-top: 24px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 20px;
+}
+details.points > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+details.points ol {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+details.points li { margin-bottom: 6px; }
+details.points li b { color: var(--ink); }
+
+@media (max-width: 1280px) {
+  .stage { grid-template-columns: repeat(7, minmax(170px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<h1>Sentinel-Forecast — Live GCP Architecture</h1>
+<p class="sub">
+  Predictive-alerting MLOps platform on Google Cloud · project <code>sentinel-forecast-2544</code> · region <code>us-central1</code>
+</p>
+
+<div class="legend">
+  <span><span class="dot in"></span>Ingest</span>
+  <span><span class="dot proc"></span>Processing</span>
+  <span><span class="dot data"></span>Data &amp; Storage</span>
+  <span><span class="dot ml"></span>ML / Vertex AI</span>
+  <span><span class="dot act"></span>Action / Alerting</span>
+  <span><span class="dot obs"></span>Observability</span>
+</div>
+
+<div class="stage">
+
+  <!-- ============================================================ -->
+  <!-- LANE 1 — SOURCES                                              -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="1 · Sources">
+    <div class="node">
+      <span class="pin">1</span>
+      <iconify-icon icon="logos:google-cloud" style="color:#4285F4"></iconify-icon>
+      <div class="name">Compute Engine VM</div>
+      <div class="sub">sentinel-dev-loadgen<br>e2-small · private IP</div>
+      <div class="note">Always-on synthetic shopper traffic generator (~30 req/s baseline). systemd unit publishes telemetry.</div>
+    </div>
+
+    <div class="node">
+      <span class="pin">2</span>
+      <iconify-icon icon="gcp:cloud-functions"></iconify-icon>
+      <div class="name">Cloud Functions</div>
+      <div class="sub">chaos-inject</div>
+      <div class="note">Flips VM metadata <code>sentinel-mode</code> → drift / latency / burst. Demo trigger.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LANE 2 — INGEST (PUB/SUB)                                     -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="2 · Messaging">
+    <div class="group" data-label="Pub/Sub topics">
+      <div class="node">
+        <span class="pin">3</span>
+        <iconify-icon icon="gcp:pubsub"></iconify-icon>
+        <div class="name">raw-traffic</div>
+        <div class="sub">topic + sub</div>
+      </div>
+      <div class="node">
+        <span class="pin">4</span>
+        <iconify-icon icon="gcp:pubsub"></iconify-icon>
+        <div class="name">telemetry</div>
+        <div class="sub">topic + sub</div>
+      </div>
+      <div class="node">
+        <span class="pin">5</span>
+        <iconify-icon icon="gcp:pubsub"></iconify-icon>
+        <div class="name">incidents</div>
+        <div class="sub">+ retrain · DLQ</div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:0">Decouples publishers (VM, victim model) from consumers (collector, triage, retrain).</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LANE 3 — PROCESSING (GKE)                                     -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="3 · Processing">
+    <div class="group" data-label="GKE Autopilot · sentinel-dev-gke">
+      <div class="node">
+        <span class="pin">6</span>
+        <iconify-icon icon="gcp:kubernetes-engine"></iconify-icon>
+        <div class="name">telemetry-collector</div>
+        <div class="sub">Pub/Sub → BQ</div>
+        <div class="note">Streams telemetry events into BigQuery in 1k-row batches via Workload Identity.</div>
+      </div>
+      <div class="node">
+        <span class="pin">7</span>
+        <iconify-icon icon="gcp:kubernetes-engine"></iconify-icon>
+        <div class="name">forecast-detector</div>
+        <div class="sub">per-min worker</div>
+        <div class="note">Loads time-series, predicts SLO breach, publishes incidents to Pub/Sub.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LANE 4 — DATA & STORAGE                                       -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="4 · Data &amp; Storage">
+    <div class="node">
+      <span class="pin">8</span>
+      <iconify-icon icon="gcp:bigquery"></iconify-icon>
+      <div class="name">BigQuery</div>
+      <div class="sub">features · incidents</div>
+      <div class="note"><code>telemetry_raw</code>, <code>predictions</code>, <code>incidents</code> — single source of truth for the forecaster &amp; dashboards.</div>
+    </div>
+    <div class="node">
+      <span class="pin">9</span>
+      <iconify-icon icon="gcp:cloud-storage"></iconify-icon>
+      <div class="name">Cloud Storage</div>
+      <div class="sub">models · code · raw · tb-logs</div>
+      <div class="note">Five buckets — model artefacts, KFP code, raw data, TensorBoard logs, processed data.</div>
+    </div>
+    <div class="node">
+      <span class="pin">10</span>
+      <iconify-icon icon="gcp:artifact-registry"></iconify-icon>
+      <div class="name">Artifact Registry</div>
+      <div class="sub">sentinel-images</div>
+      <div class="note">5 container images: victim · forecaster · triage · traffic-gen · grafana.</div>
+    </div>
+    <div class="node">
+      <span class="pin">11</span>
+      <iconify-icon icon="gcp:secret-manager"></iconify-icon>
+      <div class="name">Secret Manager</div>
+      <div class="sub">slack · gemini · email</div>
+      <div class="note">Webhook URL, Gemini API key, alert e-mail recipient — read by Cloud Run &amp; Functions.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LANE 5 — ML / VERTEX AI                                       -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="5 · ML platform">
+    <div class="node">
+      <span class="pin">12</span>
+      <iconify-icon icon="gcp:vertex-ai"></iconify-icon>
+      <div class="name">Vertex AI Endpoints</div>
+      <div class="sub">victim-recommender</div>
+      <div class="note">Two-tower model serving predictions. Emits per-request feature telemetry back to Pub/Sub.</div>
+    </div>
+    <div class="node">
+      <span class="pin">13</span>
+      <iconify-icon icon="gcp:vertex-ai"></iconify-icon>
+      <div class="name">Vertex AI Pipelines</div>
+      <div class="sub">victim · forecaster KFP</div>
+      <div class="note">Nightly retraining DAGs. Evaluate → register-model → deploy on success.</div>
+    </div>
+    <div class="node">
+      <span class="pin">14</span>
+      <iconify-icon icon="gcp:vertex-ai"></iconify-icon>
+      <div class="name">Vertex Workbench</div>
+      <div class="sub">notebook</div>
+      <div class="note">Researcher notebook — same VPC, same SAs. EDA &amp; manual experiments.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LANE 6 — ACTION / TRIAGE                                      -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="6 · Action">
+    <div class="node">
+      <span class="pin">15</span>
+      <iconify-icon icon="gcp:cloud-run"></iconify-icon>
+      <div class="name">Cloud Run · triage</div>
+      <div class="sub">push subscriber</div>
+      <div class="note">On incident: matches runbook · calls Gemini for explanation · posts to Slack · logs to BQ.</div>
+    </div>
+    <div class="node">
+      <span class="pin">16</span>
+      <iconify-icon icon="gcp:cloud-scheduler"></iconify-icon>
+      <div class="name">Cloud Scheduler</div>
+      <div class="sub">retrain · daily 02:00</div>
+      <div class="note">Cron-fires retrain Pub/Sub topic — Vertex AI Pipelines launches the KFP DAG.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LANE 7 — OBSERVABILITY                                        -->
+  <!-- ============================================================ -->
+  <div class="lane" data-title="7 · Observability">
+    <div class="node">
+      <span class="pin">17</span>
+      <iconify-icon icon="gcp:monitoring"></iconify-icon>
+      <div class="name">Cloud Monitoring</div>
+      <div class="sub">alerts · uptime</div>
+      <div class="note">Uptime checks on triage, alert policies on Pub/Sub backlog &amp; BQ ingestion freshness.</div>
+    </div>
+    <div class="node">
+      <span class="pin">18</span>
+      <iconify-icon icon="gcp:logging"></iconify-icon>
+      <div class="name">Cloud Logging</div>
+      <div class="sub">unified JSON</div>
+      <div class="note">Every pod / Cloud Run / Function emits structured JSON logs with severity, request_id, mode.</div>
+    </div>
+    <div class="node">
+      <span class="pin">19</span>
+      <iconify-icon icon="logos:grafana"></iconify-icon>
+      <div class="name">Grafana</div>
+      <div class="sub">on Compute Engine</div>
+      <div class="note">Dashboards over BigQuery — live latency, error-rate, drift, forecast vs actual.</div>
+    </div>
+  </div>
+
+</div><!-- /stage -->
+
+<!-- ================================================================ -->
+<!-- CROSS-CUTTING                                                     -->
+<!-- ================================================================ -->
+<div class="crosscut">
+  <strong style="font-size:13px;">Cross-cutting:</strong>
+  <span class="item"><iconify-icon icon="gcp:identity-and-access-management"></iconify-icon><span><b>IAM</b> — 5 service accounts, Workload Identity for GKE pods</span></span>
+  <span class="item"><iconify-icon icon="gcp:virtual-private-cloud"></iconify-icon><span><b>VPC + Cloud NAT</b> — private subnets, no public IPs on VM/GKE</span></span>
+  <span class="item"><iconify-icon icon="logos:slack-icon"></iconify-icon><span><b>Slack</b> — outbound webhook</span></span>
+  <span class="item"><iconify-icon icon="logos:google-gemini"></iconify-icon><span><b>Gemini API</b> — runbook explanations</span></span>
+</div>
+
+<!-- ================================================================ -->
+<!-- POINTS / ANNOTATIONS                                              -->
+<!-- ================================================================ -->
+<details class="points" open>
+  <summary>📌 Annotated reference (every numbered pin)</summary>
+  <ol>
+    <li><b>Compute Engine VM (loadgen)</b> — `e2-small` Debian 12, no public IP, egress via Cloud NAT. systemd unit <code>sentinel-loadgen.service</code> runs <code>traffic_generator.py</code>.</li>
+    <li><b>Cloud Functions (chaos-inject)</b> — flips the VM metadata <code>sentinel-mode</code> attribute (baseline / drift / latency / burst / off) for live demos.</li>
+    <li><b>Pub/Sub · raw-traffic</b> — every synthetic shopper request lands here as JSON. Consumed by the analytics path.</li>
+    <li><b>Pub/Sub · telemetry</b> — per-metric stream (latency_ms, image_emb_norm, review_token_count, error_rate). Source of truth for the forecaster.</li>
+    <li><b>Pub/Sub · incidents (+ retrain · DLQ)</b> — fan-out for actions: triage push subscription &amp; retrain trigger; failures land in DLQ.</li>
+    <li><b>GKE · telemetry-collector</b> — single Deployment, batched <code>insert_rows_json</code> into BigQuery. ~140 rows/s sustained.</li>
+    <li><b>GKE · forecast-detector</b> — runs the temporal forecaster + SLO evaluator; on predicted breach it publishes a structured incident.</li>
+    <li><b>BigQuery</b> — datasets <code>sentinel_dev_features</code> &amp; <code>sentinel_dev_incidents</code>. Tables: <code>telemetry_raw</code>, <code>predictions</code>, <code>incidents</code>.</li>
+    <li><b>Cloud Storage</b> — buckets <code>…-models</code>, <code>…-code</code>, <code>…-raw-data</code>, <code>…-processed</code>, <code>…-tb-logs</code>.</li>
+    <li><b>Artifact Registry</b> — Docker repo <code>sentinel-images</code> in <code>us-central1</code>; built locally by <code>scripts/build_local.sh</code>.</li>
+    <li><b>Secret Manager</b> — secrets <code>slack-webhook-url</code>, <code>gemini-api-key</code>, <code>alert-email</code>; read at runtime, never in code.</li>
+    <li><b>Vertex AI Endpoints · victim-recommender</b> — two-tower recommender served from <code>victim:latest</code> on n1-standard-2.</li>
+    <li><b>Vertex AI Pipelines</b> — KFP DAGs <code>victim_train</code> &amp; <code>forecaster_train</code>; <code>register_model_op</code> auto-deploys passing models.</li>
+    <li><b>Vertex Workbench</b> — researcher notebook on the same VPC for ad-hoc analysis.</li>
+    <li><b>Cloud Run · triage</b> — Pub/Sub push handler. Picks a runbook (cosine over YAML library), asks Gemini to explain, posts to Slack, writes to <code>incidents</code> table.</li>
+    <li><b>Cloud Scheduler</b> — cron <code>0 2 * * *</code> publishes a retrain trigger; Vertex AI Pipelines picks it up.</li>
+    <li><b>Cloud Monitoring</b> — uptime check on the triage URL, alert policy on Pub/Sub backlog and BigQuery ingestion lag.</li>
+    <li><b>Cloud Logging</b> — every component emits structured JSON; severity-routed sinks feed alert policies.</li>
+    <li><b>Grafana</b> — on a small Compute Engine VM, BigQuery datasource. Dashboards: live SLI panel, forecast-vs-actual, drift map.</li>
+  </ol>
+</details>
+
+<!-- ================================================================ -->
+<!-- FLOW SUMMARY (read in order)                                      -->
+<!-- ================================================================ -->
+<details class="points" open style="margin-top:14px;">
+  <summary>🔁 End-to-end data flow</summary>
+  <ol>
+    <li><b>VM loadgen</b> publishes raw events &amp; per-metric telemetry to <b>Pub/Sub</b> (~120 msg/s).</li>
+    <li><b>GKE telemetry-collector</b> drains the telemetry subscription and streams rows into <b>BigQuery</b>.</li>
+    <li><b>Vertex AI victim endpoint</b> serves predictions; its FeatureLogger also publishes telemetry (closes the loop).</li>
+    <li><b>GKE forecast-detector</b> queries BigQuery every minute, runs the temporal forecaster, and on predicted SLO breach publishes an <b>incident</b>.</li>
+    <li><b>Cloud Run triage</b> consumes the incident: matches a YAML runbook, asks <b>Gemini</b> for context, posts to <b>Slack</b>, writes to BigQuery.</li>
+    <li><b>Cloud Scheduler</b> kicks <b>Vertex AI Pipelines</b> nightly to retrain &amp; redeploy the victim / forecaster models.</li>
+    <li><b>Cloud Monitoring</b> watches everything; <b>Grafana</b> presents the human-facing dashboards.</li>
+  </ol>
+</details>
+
+</body>
+</html>

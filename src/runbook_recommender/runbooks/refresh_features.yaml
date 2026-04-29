@@ -1,0 +1,15 @@
+# WHAT: Force-trigger the feature retrain pipeline.
+# WHY:  When the world has drifted, we may need fresh features ASAP.
+runbook_id: refresh_features
+title: Trigger feature pipeline retrain
+description: |
+  Run the victim training pipeline ad-hoc so a fresh model picks up the
+  new data distribution.
+when_to_use:
+  - drift
+  - image_embedding_norm
+  - medium
+actions:
+  - "gcloud scheduler jobs run sentinel-dev-victim-retrain --location=$REGION"
+  - "Or via SDK: aiplatform.PipelineJob.from_pipeline_func(...).submit()"
+  - "Watch the pipeline run in console: Vertex AI -> Pipelines"

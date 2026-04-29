@@ -1,0 +1,15 @@
+# WHAT: Emergency stop — route traffic away from the endpoint.
+# WHY:  Last resort when a model is causing customer-visible damage.
+runbook_id: disable_endpoint
+title: Emergency disable endpoint
+description: |
+  Send all traffic to a fallback static-response model (or 503) until
+  the team can investigate.
+when_to_use:
+  - high
+  - error_rate
+  - errors
+actions:
+  - "Check active traffic split: gcloud ai endpoints describe ENDPOINT --region=$REGION"
+  - "Update traffic split to a known-safe model OR undeploy current"
+  - "Page the on-call team with incident link"

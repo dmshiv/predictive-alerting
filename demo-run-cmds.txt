@@ -1,0 +1,116 @@
+Demo run — copy-paste, top to bottom
+Pre-flight (10 seconds — make sure system is ready)
+bash
+# Confirm detector is running (should show 1/1 ready)
+kubectl get deployment forecast-detector -n sentinel
+ 
+# Confirm chaos mode is baseline (should show "baseline")
+gcloud compute instances describe sentinel-dev-loadgen --zone=us-central1-a --project=sentinel-forecast-2544 --format=json | python3 -c "import json,sys;d=json.load(sys.stdin);print('chaos mode:', [i['value'] for i in d['metadata']['items'] if i['key']=='sentinel-mode'][0])"
+ 
+# Confirm no recent incidents
+bq query --project_id=sentinel-forecast-2544 --use_legacy_sql=false "
+SELECT COUNT(*) AS recent_incidents
+FROM \`sentinel-forecast-2544.sentinel_dev_incidents.incidents\`
+WHERE fired_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)"
+If detector is at 0/0 replicas, run:
+
+bash
+kubectl scale deployment forecast-detector -n sentinel --replicas=1 && kubectl rollout status deployment forecast-detector -n sentinel
+When all three checks look healthy → start recording.
+
+STEP 1 — "The patient is healthy"
+bash
+bq query --project_id=sentinel-forecast-2544 --use_legacy_sql=false "
+SELECT metric_name,
+  ROUND(APPROX_QUANTILES(metric_value, 100)[OFFSET(50)], 2) AS p50,
+  ROUND(APPROX_QUANTILES(metric_value, 100)[OFFSET(95)], 2) AS p95,
+  ROUND(APPROX_QUANTILES(metric_value, 100)[OFFSET(99)], 2) AS p99
+FROM \`sentinel-forecast-2544.sentinel_dev_features.telemetry_raw\` 
+WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
+GROUP BY metric_name"
+Say: "Recommender on Vertex AI is healthy — p95 latency around 160ms, zero errors."
+
+STEP 2 — "The watcher is watching"
+bash
+kubectl logs -n sentinel -l app=forecast-detector --tail=3
+Say: "An LSTM forecaster on GKE pulls telemetry every minute and writes 480 prediction rows — 4 metrics times 120 minutes of horizon."
+
+STEP 3 — "Production incident: hardware degradation"
+bash
+./scripts/chaos_inject.py --mode=latency
+Say: "I'm flipping a metadata flag on the load-gen VM to simulate latency degradation — like a noisy neighbor or a memory leak in the recommender's serving infra."
+
+STEP 4 — "Watch telemetry degrade in real time"
+Wait ~90 seconds then run:
+
+bash
+bq query --project_id=sentinel-forecast-2544 --use_legacy_sql=false "
+SELECT TIMESTAMP_TRUNC(event_time, MINUTE) AS minute,
+       ROUND(AVG(IF(metric_name='latency_ms', metric_value, NULL)), 1) AS avg_latency_ms,
+       ROUND(APPROX_QUANTILES(IF(metric_name='latency_ms', metric_value, NULL), 100)[OFFSET(95)], 1) AS p95_latency,
+       ROUND(AVG(IF(metric_name='error_rate', metric_value, NULL)), 4) AS error_rate
+FROM \`sentinel-forecast-2544.sentinel_dev_features.telemetry_raw\` 
+WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
+GROUP BY minute ORDER BY minute DESC LIMIT 5"
+Say: "Latency spiked from 120ms to 700ms+, error rate climbed from 0 to 5%. The recommender doesn't know it's failing — but our watcher does."
+
+STEP 5 — "The watcher catches it" (LIVE)
+bash
+kubectl logs -n sentinel -l app=forecast-detector -f --tail=5 | grep -E "current_breach|predictive_alert|forecast_run"
+Wait for a line like:
+
+"event": "current_breach", "metric": "latency_ms", "value": 7XX.X, "severity": "high"
+"event": "predictive_alert", "metric_name": "latency_ms", "source": "reactive"
+When you see predictive_alert → Ctrl-C and continue.
+
+Say: "Reactive evaluator detected the SLO breach, published to the incidents Pub/Sub topic. Now watch the rest of the chain."
+
+STEP 6 — "Slack alert" (CUT TO SLACK TAB)
+Switch tabs, point at the new alert card with severity, metric, Gemini summary, runbook ID.
+
+Say: "Cloud Run triage service consumed the Pub/Sub event, called Gemini for an executive summary, picked the right runbook, posted to Slack. The on-call engineer has full context — not a blank page."
+
+STEP 7 — "Grafana dashboard" (CUT TO GRAFANA TAB)
+Show the panels updating: telemetry spike, prediction band, incidents row.
+
+Say: "Same data, different lens — telemetry, model predictions, and active incidents all in one pane for the operations team."
+
+STEP 8 — "The audit trail" (BACK TO TERMINAL)
+bash
+bq query --project_id=sentinel-forecast-2544 --use_legacy_sql=false "
+SELECT incident_id, fired_at, severity, metric_name, runbook_id,
+       SUBSTR(gemini_report, 1, 200) AS gemini_summary
+FROM \`sentinel-forecast-2544.sentinel_dev_incidents.incidents\` 
+WHERE fired_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
+ORDER BY fired_at DESC LIMIT 1"
+Say: "Every incident persisted to BigQuery with the full Gemini report — that becomes our training data for runbook recommendation and post-incident reviews."
+
+STEP 9 — "Human acknowledges, applies the fix"
+bash
+./scripts/chaos_inject.py --mode=baseline
+Say: "In production an on-call engineer would click through the runbook. For this demo I'm restoring the upstream infra to baseline — that's the human-in-the-loop fix step."
+
+STEP 10 — "System recovers"
+Wait ~2 minutes, then:
+
+bash
+bq query --project_id=sentinel-forecast-2544 --use_legacy_sql=false "
+SELECT TIMESTAMP_TRUNC(event_time, MINUTE) AS minute,
+       ROUND(AVG(IF(metric_name='latency_ms', metric_value, NULL)), 1) AS avg_latency,
+       ROUND(AVG(IF(metric_name='error_rate', metric_value, NULL)), 4) AS error_rate
+FROM \`sentinel-forecast-2544.sentinel_dev_features.telemetry_raw\` 
+WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
+GROUP BY minute ORDER BY minute DESC LIMIT 5"
+Say: "Latency back to 120ms, error rate back to zero. Three-minute cooldown prevents alert spam during the breach window. Loop closed: degrade → predict → alert → triage → fix → recover."
+
+STEP 11 — Closing remarks (no command)
+Talk through:
+
+"Architecture: Vertex AI for the production model, GKE for the watcher with Workload Identity, Cloud Run for triage, Pub/Sub for event flow, BigQuery for telemetry and audit, Secret Manager for credentials, Gemini for natural-language triage."
+"Two-evaluator design: a predictive layer based on the LSTM forecast for slow-moving drift, and a reactive layer for sudden out-of-distribution faults the LSTM hasn't been trained on. Both feed the same alert pipeline with per-metric cooldown to prevent fatigue."
+"Production hardening I'd add next: retraining the forecaster on chaos-injection data so the predictive layer can extrapolate true degradation patterns, and a feedback loop where engineer actions on Slack annotate incidents to fine-tune Gemini's runbook selection."
+STOP RECORDING
+Post-demo cleanup
+bash
+# scale watcher back down so it doesn't run all night
+kubectl scale deployment forecast-detector -n sentinel --replicas=0

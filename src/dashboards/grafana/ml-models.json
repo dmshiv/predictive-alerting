@@ -1,0 +1,18 @@
+{
+  "title": "Sentinel · ML Models",
+  "uid": "sentinel-ml",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Prediction confidence histogram",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "targets": [{"datasource": "BigQuery", "rawSql": "SELECT minute AS time, avg_value AS value FROM `${project}.sentinel_${env}_features.telemetry_1m_rollup` WHERE metric_name='text_emb_norm' ORDER BY minute"}]},
+    {"id": 2, "type": "timeseries", "title": "Error rate (per-endpoint)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{"datasource": "BigQuery", "rawSql": "SELECT minute AS time, endpoint_id, avg_value FROM `${project}.sentinel_${env}_features.telemetry_1m_rollup` WHERE metric_name='error_rate' ORDER BY minute"}]},
+    {"id": 3, "type": "stat", "title": "Last forecaster training run",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8},
+      "targets": [{"datasource": "BigQuery", "rawSql": "SELECT MAX(predicted_at) AS last_run FROM `${project}.sentinel_${env}_features.predictions`"}]}
+  ]
+}

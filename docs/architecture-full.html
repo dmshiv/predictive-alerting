@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sentinel-Forecast — Complete GCP Architecture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f7fc;
+    --panel: #ffffff;
+    --line: #c8d2e0;
+    --muted: #5f6b7a;
+    --ink: #1a2233;
+    --arrow: #2b6df0;
+    --arrow-soft: #6f95dd;
+    --arrow-back: #b35c00;
+  }
+  *  { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Google Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 28px;
+  }
+  h1 { margin: 0 0 4px; font-size: 26px; font-weight: 700; }
+  .sub { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 18px;
+    margin-bottom: 14px; font-size: 12px; color: var(--muted);
+  }
+  .legend .arr { display:inline-block; width:22px; height:2px; vertical-align:middle; margin-right:4px; }
+  .arr.fwd  { background: var(--arrow); }
+  .arr.soft { background: var(--arrow-soft); }
+  .arr.back { background: var(--arrow-back); }
+
+  /* container holds the SVG poster */
+  .poster-wrap {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    padding: 0;
+  }
+  svg.poster { display: block; width: 2600px; height: auto; }
+
+  /* annotation panel */
+  details.points {
+    margin-top: 18px;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 20px;
+  }
+  details.points > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details.points ol { margin: 12px 0 0; padding-left: 20px; font-size: 12.5px; line-height: 1.55; }
+  details.points li { margin-bottom: 5px; }
+  details.points b  { color: var(--ink); }
+
+  /* iconify-icon used as <image href> via data URL won't work; we use foreignObject inside SVG */
+  foreignObject .ic { display:flex; align-items:center; justify-content:center; }
+  foreignObject iconify-icon { font-size: 44px; }
+</style>
+</head>
+<body>
+
+<h1>Sentinel-Forecast — Complete GCP Architecture</h1>
+<p class="sub">All resources used in the project. Real Google Cloud product icons. Arrows show data &amp; control flow.</p>
+
+<div class="legend">
+  <span><i class="arr fwd"></i> Forward data flow</span>
+  <span><i class="arr soft"></i> Container image / artefact</span>
+  <span><i class="arr back"></i> Loop / feedback / control</span>
+  <span>● Numbered pin → see annotated reference below</span>
+</div>
+
+<div class="poster-wrap">
+  <svg id="poster" class="poster" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2600 1700">
+    <!-- arrow head markers -->
+    <defs>
+      <marker id="ah-fwd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#2b6df0"/>
+      </marker>
+      <marker id="ah-soft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#6f95dd"/>
+      </marker>
+      <marker id="ah-back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#b35c00"/>
+      </marker>
+      <linearGradient id="laneFade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#eef3fb" stop-opacity="1"/>
+        <stop offset="1" stop-color="#eef3fb" stop-opacity="0.4"/>
+      </linearGradient>
+    </defs>
+
+    <!-- background -->
+    <rect width="2600" height="1700" fill="#f4f7fc"/>
+    <text x="40" y="44" font-family="Google Sans" font-size="20" font-weight="700" fill="#1a2233">Sentinel-Forecast · sentinel-forecast-2544 · us-central1</text>
+    <text x="40" y="68" font-family="Roboto Mono" font-size="13" fill="#5f6b7a">Resources will be drawn here →  cards use real iconify-rendered Google Cloud icons.  See the annotated list below.</text>
+
+    <!-- lane backgrounds + headers will be drawn by JS -->
+    <g id="lanes-bg"></g>
+    <g id="edges"></g>
+    <g id="nodes"></g>
+    <g id="lanes-fg"></g>
+  </svg>
+</div>
+
+<!-- ============================== -->
+<!-- ANNOTATED REFERENCE             -->
+<!-- ============================== -->
+<details class="points" open>
+  <summary>📌 Annotated reference — every resource (numbered pins on the diagram)</summary>
+  <ol id="annotations-list"></ol>
+</details>
+
+<details class="points" open style="margin-top:14px;">
+  <summary>🔁 End-to-end data flow</summary>
+  <ol>
+    <li><b>VM loadgen</b> publishes raw events &amp; per-metric telemetry to <b>Pub/Sub</b> (~120 msg/s).</li>
+    <li><b>Vertex AI victim endpoint</b> serves predictions &amp; also publishes telemetry (closes the loop).</li>
+    <li><b>GKE telemetry-collector</b> drains telemetry → batched <b>BigQuery</b> insert.</li>
+    <li><b>GKE forecast-detector</b> reads BigQuery every minute, runs the temporal forecaster, on predicted SLO breach publishes an <b>incident</b>.</li>
+    <li><b>Cloud Run triage</b> picks up the incident: matches a runbook · asks <b>Gemini</b> · posts to <b>Slack</b> · writes to BigQuery.</li>
+    <li><b>Cloud Scheduler</b> nightly fires the retrain Pub/Sub topic; <b>Vertex AI Pipelines</b> retrains, registers, and redeploys.</li>
+    <li><b>Cloud Monitoring</b> watches everything; <b>Grafana</b> presents BQ dashboards.</li>
+  </ol>
+</details>
+
+<details class="points" style="margin-top:14px;">
+  <summary>🖼  Export to PNG</summary>
+  <p style="font-size:13px; line-height:1.6;">
+    Run the helper script to render this page to PNG via headless Chrome:<br>
+    <code>./scripts/export_architecture_png.sh</code><br>
+    Output: <code>docs/architecture-full.png</code> (~ 2600×1700, ~ 350 KB).
+  </p>
+</details>
+
+<script>
+/* =================================================================
+   DATA — every GCP resource in the project.
+   Lanes (1..8) are columns; rows stack vertically inside each lane.
+   ================================================================= */
+const LANES = [
+  { id: 1, x: 60,    w: 280, title: "1 · Sources" },
+  { id: 2, x: 360,   w: 280, title: "2 · Messaging — Pub/Sub" },
+  { id: 3, x: 660,   w: 280, title: "3 · Compute — GKE" },
+  { id: 4, x: 960,   w: 280, title: "4 · Data &amp; Storage" },
+  { id: 5, x: 1260,  w: 280, title: "5 · ML platform — Vertex AI" },
+  { id: 6, x: 1560,  w: 280, title: "6 · Action / Triage" },
+  { id: 7, x: 1860,  w: 280, title: "7 · Observability" },
+  { id: 8, x: 2160,  w: 380, title: "8 · External / Identity" },
+];
+const LANE_TOP = 100;
+const ROW_H    = 140;
+const CARD_W   = 250;
+const CARD_H   = 120;
+
+const NODES = [
+  // Lane 1 — Sources
+  { id:"vm",     lane:1, row:0, icon:"gcp:compute-engine",        name:"Compute Engine VM",     sub:"sentinel-dev-loadgen" },
+  { id:"chaos",  lane:1, row:1, icon:"gcp:cloud-functions",       name:"Cloud Functions",       sub:"chaos-inject" },
+  { id:"sched",  lane:1, row:2, icon:"gcp:cloud-scheduler",       name:"Cloud Scheduler",       sub:"retrain · daily 02:00" },
+  { id:"router", lane:1, row:3, icon:"gcp:cloud-router",          name:"Cloud Router + NAT",    sub:"egress for private subnets" },
+  { id:"dev",    lane:1, row:4, icon:"logos:visual-studio-code",  name:"Developer",             sub:"gcloud · kubectl · terraform" },
+
+  // Lane 2 — Pub/Sub
+  { id:"ps_raw",     lane:2, row:0, icon:"gcp:pubsub", name:"Topic · raw-traffic",       sub:"sub: ingestion-raw" },
+  { id:"ps_tel",     lane:2, row:1, icon:"gcp:pubsub", name:"Topic · telemetry",         sub:"sub: ingestion-telemetry" },
+  { id:"ps_inc",     lane:2, row:2, icon:"gcp:pubsub", name:"Topic · incidents",         sub:"push + pull subs" },
+  { id:"ps_retrain", lane:2, row:3, icon:"gcp:pubsub", name:"Topic · retrain-trigger",   sub:"sub: pipeline-retrain" },
+  { id:"ps_dlq",     lane:2, row:4, icon:"gcp:pubsub", name:"Topic · DLQ",               sub:"sub: dlq-inspect" },
+
+  // Lane 3 — GKE
+  { id:"gke",     lane:3, row:0, icon:"gcp:kubernetes-engine", name:"GKE Autopilot cluster", sub:"sentinel-dev-gke", isGroup:true },
+  { id:"ns",      lane:3, row:1, icon:"logos:kubernetes",      name:"Namespace · sentinel",  sub:"WI: sentinel-ingestion / -victim" },
+  { id:"pod_tc",  lane:3, row:2, icon:"logos:kubernetes",      name:"Pod · telemetry-collector", sub:"Deployment · 1 replica" },
+  { id:"pod_fd",  lane:3, row:3, icon:"logos:kubernetes",      name:"Pod · forecast-detector",   sub:"Deployment · 1 replica" },
+
+  // Lane 4 — Data & Storage
+  { id:"bq",      lane:4, row:0, icon:"gcp:bigquery",          name:"BigQuery",          sub:"datasets: features · incidents" },
+  { id:"bq_tel",  lane:4, row:1, icon:"gcp:bigquery",          name:"Table · telemetry_raw",  sub:"~140 rows/s ingestion" },
+  { id:"bq_pred", lane:4, row:2, icon:"gcp:bigquery",          name:"Table · predictions / incidents",  sub:"forecaster output" },
+  { id:"gcs",     lane:4, row:3, icon:"gcp:cloud-storage",     name:"Cloud Storage",     sub:"models · code · raw · processed · tb-logs" },
+  { id:"ar",      lane:4, row:4, icon:"gcp:artifact-registry", name:"Artifact Registry", sub:"sentinel-images · 5 images" },
+  { id:"sm",      lane:4, row:5, icon:"gcp:secret-manager",    name:"Secret Manager",    sub:"slack · gemini · email" },
+
+  // Lane 5 — Vertex AI
+  { id:"vx_ep",   lane:5, row:0, icon:"gcp:vertex-ai", name:"Vertex AI Endpoint", sub:"victim-recommender" },
+  { id:"vx_mr",   lane:5, row:1, icon:"gcp:vertex-ai", name:"Model Registry",     sub:"victim · forecaster" },
+  { id:"vx_pl",   lane:5, row:2, icon:"gcp:vertex-ai", name:"Vertex AI Pipelines", sub:"KFP · victim · forecaster" },
+  { id:"vx_wb",   lane:5, row:3, icon:"gcp:vertex-ai", name:"Vertex Workbench",   sub:"researcher notebook" },
+  { id:"vx_fs",   lane:5, row:4, icon:"gcp:vertex-ai", name:"Feature Store (planned)", sub:"online + offline" },
+
+  // Lane 6 — Action
+  { id:"run",   lane:6, row:0, icon:"gcp:cloud-run", name:"Cloud Run · triage",     sub:"push subscriber" },
+  { id:"runbk", lane:6, row:1, icon:"logos:google-gemini", name:"Runbook recommender",   sub:"YAML library · embeddings" },
+  { id:"sched2",lane:6, row:2, icon:"gcp:cloud-scheduler", name:"Cloud Scheduler · health", sub:"weekly synthetic incident" },
+
+  // Lane 7 — Observability
+  { id:"mon",    lane:7, row:0, icon:"gcp:monitoring",     name:"Cloud Monitoring", sub:"alerts · uptime · dashboards" },
+  { id:"log",    lane:7, row:1, icon:"gcp:logging",        name:"Cloud Logging",    sub:"unified JSON logs" },
+  { id:"trace",  lane:7, row:2, icon:"gcp:cloud-trace",    name:"Cloud Trace",      sub:"request latency" },
+  { id:"err",    lane:7, row:3, icon:"gcp:error-reporting",name:"Error Reporting",  sub:"exception aggregation" },
+  { id:"graf",   lane:7, row:4, icon:"logos:grafana",      name:"Grafana",          sub:"on Compute Engine" },
+
+  // Lane 8 — External / Identity
+  { id:"iam",     lane:8, row:0, icon:"gcp:identity-and-access-management", name:"IAM",   sub:"5 service accounts · WI" },
+  { id:"vpc",     lane:8, row:1, icon:"gcp:virtual-private-cloud",          name:"VPC + Subnets", sub:"private only · firewall" },
+  { id:"slack",   lane:8, row:2, icon:"logos:slack-icon",   name:"Slack",       sub:"incoming webhook" },
+  { id:"gemini",  lane:8, row:3, icon:"logos:google-gemini",name:"Gemini API",  sub:"runbook explanations" },
+  { id:"email",   lane:8, row:4, icon:"logos:google-gmail", name:"Email",       sub:"alert recipient" },
+];
+
+const EDGES = [
+  // VM produces traffic + telemetry
+  { from:"vm",     to:"ps_raw", label:"raw events" },
+  { from:"vm",     to:"ps_tel", label:"per-metric telemetry" },
+
+  // Chaos inject manipulates VM mode
+  { from:"chaos",  to:"vm",     label:"flip mode metadata", kind:"back" },
+
+  // Pub/Sub → GKE
+  { from:"ps_tel", to:"pod_tc", label:"streaming pull" },
+  { from:"ps_inc", to:"run",    label:"push subscription" },
+
+  // GKE pods → BigQuery
+  { from:"pod_tc", to:"bq_tel", label:"insert_rows_json" },
+  { from:"pod_fd", to:"bq_pred",label:"writes predictions" },
+  { from:"bq_tel", to:"pod_fd", label:"reads window", kind:"back" },
+
+  // Forecaster → incidents
+  { from:"pod_fd", to:"ps_inc", label:"breach forecast" },
+
+  // Vertex AI endpoint loops back to telemetry
+  { from:"vx_ep",  to:"ps_tel", label:"feature telemetry", kind:"back" },
+
+  // Triage flows out
+  { from:"run", to:"slack",   label:"webhook" },
+  { from:"run", to:"gemini",  label:"explain" },
+  { from:"run", to:"bq_pred", label:"incidents row", kind:"back" },
+  { from:"run", to:"sm",      label:"reads secrets", kind:"back" },
+  { from:"run", to:"runbk",   label:"select runbook" },
+
+  // Retrain control plane
+  { from:"sched",      to:"ps_retrain", label:"cron" },
+  { from:"ps_retrain", to:"vx_pl",      label:"trigger" },
+  { from:"vx_pl",      to:"vx_mr",      label:"register model" },
+  { from:"vx_mr",      to:"vx_ep",      label:"deploy", kind:"back" },
+  { from:"vx_pl",      to:"gcs",        label:"artefacts", kind:"soft" },
+  { from:"vx_ep",      to:"gcs",        label:"loads model", kind:"soft" },
+
+  // Workbench
+  { from:"vx_wb", to:"bq", label:"queries", kind:"back" },
+
+  // Container images
+  { from:"ar", to:"vx_ep",  label:"image", kind:"soft" },
+  { from:"ar", to:"pod_tc", label:"image", kind:"soft" },
+  { from:"ar", to:"pod_fd", label:"image", kind:"soft" },
+  { from:"ar", to:"run",    label:"image", kind:"soft" },
+  { from:"ar", to:"graf",   label:"image", kind:"soft" },
+
+  // Observability
+  { from:"bq",  to:"graf", label:"datasource", kind:"back" },
+  { from:"mon", to:"slack",label:"alert" },
+  { from:"mon", to:"email",label:"alert email" },
+  { from:"log", to:"err",  label:"errors", kind:"back" },
+
+  // Identity
+  { from:"iam", to:"gke",  label:"WI",  kind:"back" },
+  { from:"iam", to:"run",  label:"SA",  kind:"back" },
+  { from:"iam", to:"vm",   label:"SA",  kind:"back" },
+];
+
+/* =================================================================
+   RENDERING
+   ================================================================= */
+function nodeBox(n) {
+  const lane = LANES.find(l => l.id === n.lane);
+  const x = lane.x + (lane.w - CARD_W) / 2;
+  const y = LANE_TOP + 36 + n.row * ROW_H;
+  return { x, y, w: CARD_W, h: CARD_H, cx: x + CARD_W/2, cy: y + CARD_H/2,
+           rightX: x + CARD_W, leftX: x, midY: y + CARD_H/2 };
+}
+
+function drawLanes() {
+  const bg = document.getElementById("lanes-bg");
+  const fg = document.getElementById("lanes-fg");
+  for (const lane of LANES) {
+    // background panel
+    const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    rect.setAttribute("x", lane.x - 10);
+    rect.setAttribute("y", LANE_TOP);
+    rect.setAttribute("width", lane.w + 20);
+    rect.setAttribute("height", 1560);
+    rect.setAttribute("rx", 12);
+    rect.setAttribute("fill", "#eef3fb");
+    rect.setAttribute("opacity", "0.55");
+    bg.appendChild(rect);
+    // header
+    const txt = document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x", lane.x);
+    txt.setAttribute("y", LANE_TOP + 22);
+    txt.setAttribute("font-family", "Google Sans");
+    txt.setAttribute("font-size", "13");
+    txt.setAttribute("font-weight", "700");
+    txt.setAttribute("fill", "#4a6ab8");
+    txt.setAttribute("letter-spacing", "1");
+    txt.innerHTML = lane.title.toUpperCase();
+    fg.appendChild(txt);
+  }
+}
+
+function drawNodes() {
+  const g = document.getElementById("nodes");
+  let pin = 1;
+  const annotList = document.getElementById("annotations-list");
+  for (const n of NODES) {
+    const box = nodeBox(n);
+    const grp = document.createElementNS("http://www.w3.org/2000/svg","g");
+    grp.setAttribute("data-id", n.id);
+
+    // card
+    const card = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    card.setAttribute("x", box.x);
+    card.setAttribute("y", box.y);
+    card.setAttribute("width", box.w);
+    card.setAttribute("height", box.h);
+    card.setAttribute("rx", 12);
+    card.setAttribute("fill", "#ffffff");
+    card.setAttribute("stroke", n.isGroup ? "#4285F4" : "#c8d2e0");
+    card.setAttribute("stroke-width", n.isGroup ? "2" : "1.2");
+    if (n.isGroup) card.setAttribute("stroke-dasharray", "6 4");
+    grp.appendChild(card);
+
+    // icon area (foreignObject hosts iconify-icon)
+    const fo = document.createElementNS("http://www.w3.org/2000/svg","foreignObject");
+    fo.setAttribute("x", box.x + 12);
+    fo.setAttribute("y", box.y + 14);
+    fo.setAttribute("width", 56);
+    fo.setAttribute("height", 56);
+    const div = document.createElement("div");
+    div.className = "ic";
+    div.style.width = "56px"; div.style.height = "56px";
+    div.innerHTML = `<iconify-icon icon="${n.icon}" style="font-size:50px"></iconify-icon>`;
+    fo.appendChild(div);
+    grp.appendChild(fo);
+
+    // text
+    const tName = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tName.setAttribute("x", box.x + 80);
+    tName.setAttribute("y", box.y + 38);
+    tName.setAttribute("font-family", "Google Sans");
+    tName.setAttribute("font-size", "13.5");
+    tName.setAttribute("font-weight", "600");
+    tName.setAttribute("fill", "#1a2233");
+    tName.textContent = n.name;
+    grp.appendChild(tName);
+
+    const tSub = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tSub.setAttribute("x", box.x + 80);
+    tSub.setAttribute("y", box.y + 58);
+    tSub.setAttribute("font-family", "Roboto Mono");
+    tSub.setAttribute("font-size", "11");
+    tSub.setAttribute("fill", "#5f6b7a");
+    // wrap sub onto two lines if long
+    const subParts = wrap(n.sub, 30);
+    tSub.textContent = subParts[0] || "";
+    grp.appendChild(tSub);
+    if (subParts[1]) {
+      const tSub2 = document.createElementNS("http://www.w3.org/2000/svg","text");
+      tSub2.setAttribute("x", box.x + 80);
+      tSub2.setAttribute("y", box.y + 74);
+      tSub2.setAttribute("font-family", "Roboto Mono");
+      tSub2.setAttribute("font-size", "11");
+      tSub2.setAttribute("fill", "#5f6b7a");
+      tSub2.textContent = subParts[1];
+      grp.appendChild(tSub2);
+    }
+
+    // pin
+    const pinG = document.createElementNS("http://www.w3.org/2000/svg","g");
+    const pinC = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    pinC.setAttribute("cx", box.x + box.w - 14);
+    pinC.setAttribute("cy", box.y + 14);
+    pinC.setAttribute("r", 12);
+    pinC.setAttribute("fill", "#2b6df0");
+    pinG.appendChild(pinC);
+    const pinT = document.createElementNS("http://www.w3.org/2000/svg","text");
+    pinT.setAttribute("x", box.x + box.w - 14);
+    pinT.setAttribute("y", box.y + 18);
+    pinT.setAttribute("text-anchor", "middle");
+    pinT.setAttribute("font-family", "Google Sans");
+    pinT.setAttribute("font-size", "11");
+    pinT.setAttribute("font-weight", "700");
+    pinT.setAttribute("fill", "#fff");
+    pinT.textContent = pin;
+    pinG.appendChild(pinT);
+    grp.appendChild(pinG);
+
+    // store pin number on node for annotation
+    n.__pin = pin;
+
+    // small footer label of resource type
+    const tFoot = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tFoot.setAttribute("x", box.x + 12);
+    tFoot.setAttribute("y", box.y + box.h - 10);
+    tFoot.setAttribute("font-family", "Roboto Mono");
+    tFoot.setAttribute("font-size", "9.5");
+    tFoot.setAttribute("fill", "#8a96a6");
+    tFoot.setAttribute("letter-spacing", "0.6");
+    tFoot.textContent = (n.icon.split(":")[1] || "").toUpperCase().replace(/-/g," ");
+    grp.appendChild(tFoot);
+
+    g.appendChild(grp);
+
+    // annotation row
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${pin}. ${n.name}</b> — <code>${n.icon}</code> · ${n.sub}`;
+    annotList.appendChild(li);
+    pin++;
+  }
+}
+
+function wrap(s, n) {
+  if (!s) return [];
+  if (s.length <= n) return [s];
+  const half = Math.ceil(s.length / 2);
+  let cut = s.lastIndexOf(" ", n);
+  if (cut < 0 || cut < n*0.4) cut = n;
+  return [s.slice(0, cut), s.slice(cut + 1)];
+}
+
+function side(box, which) {
+  if (which === "right") return { x: box.rightX, y: box.midY };
+  if (which === "left")  return { x: box.leftX,  y: box.midY };
+  if (which === "top")   return { x: box.cx,     y: box.y };
+  if (which === "bot")   return { x: box.cx,     y: box.y + box.h };
+}
+
+function drawEdges() {
+  const g = document.getElementById("edges");
+  const idx = Object.fromEntries(NODES.map(n => [n.id, nodeBox(n)]));
+  for (const e of EDGES) {
+    const a = idx[e.from], b = idx[e.to];
+    if (!a || !b) continue;
+
+    const kind = e.kind || "fwd";
+    const stroke = kind === "back" ? "#b35c00"
+                : kind === "soft" ? "#6f95dd"
+                : "#2b6df0";
+    const dash = kind === "soft" ? "5 4" : (kind === "back" ? "2 4" : "");
+    const marker = kind === "back" ? "url(#ah-back)"
+                 : kind === "soft" ? "url(#ah-soft)"
+                 : "url(#ah-fwd)";
+
+    // Determine connection sides:
+    // forward = right of A → left of B (when A is to the left of B)
+    let p1, p2;
+    if (a.cx < b.cx) {
+      p1 = side(a, "right"); p2 = side(b, "left");
+    } else if (a.cx > b.cx) {
+      p1 = side(a, "left");  p2 = side(b, "right");
+    } else {
+      p1 = side(a, "bot");   p2 = side(b, "top");
+    }
+
+    // Curved bezier — control points
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const cx1 = p1.x + dx * 0.5;
+    const cy1 = p1.y;
+    const cx2 = p1.x + dx * 0.5;
+    const cy2 = p2.y;
+    const path = `M ${p1.x} ${p1.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p2.x} ${p2.y}`;
+
+    const pe = document.createElementNS("http://www.w3.org/2000/svg","path");
+    pe.setAttribute("d", path);
+    pe.setAttribute("fill", "none");
+    pe.setAttribute("stroke", stroke);
+    pe.setAttribute("stroke-width", "1.6");
+    if (dash) pe.setAttribute("stroke-dasharray", dash);
+    pe.setAttribute("marker-end", marker);
+    pe.setAttribute("opacity", "0.85");
+    g.appendChild(pe);
+
+    // edge label (mid-curve)
+    if (e.label) {
+      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+      const mx = (p1.x + p2.x) / 2;
+      const my = (p1.y + p2.y) / 2 - 4;
+      t.setAttribute("x", mx);
+      t.setAttribute("y", my);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("font-family", "Google Sans");
+      t.setAttribute("font-size", "10.5");
+      t.setAttribute("fill", stroke);
+      t.setAttribute("font-weight", "500");
+      // small white halo for readability
+      const halo = document.createElementNS("http://www.w3.org/2000/svg","text");
+      halo.setAttribute("x", mx);
+      halo.setAttribute("y", my);
+      halo.setAttribute("text-anchor", "middle");
+      halo.setAttribute("font-family", "Google Sans");
+      halo.setAttribute("font-size", "10.5");
+      halo.setAttribute("stroke", "#f4f7fc");
+      halo.setAttribute("stroke-width", "3");
+      halo.setAttribute("fill", "#f4f7fc");
+      halo.textContent = e.label;
+      g.appendChild(halo);
+      t.textContent = e.label;
+      g.appendChild(t);
+    }
+  }
+}
+
+drawLanes();
+drawNodes();
+drawEdges();
+</script>
+</body>
+</html>

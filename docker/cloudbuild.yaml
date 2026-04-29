@@ -1,0 +1,127 @@
+# =============================================================================
+# WHAT  : Cloud Build pipeline that builds + pushes all 5 container images.
+# WHY   : Cloud Build is the *fallback* path. Primary path is now
+#         `scripts/build_local.sh` which builds on the host Docker daemon and
+#         pushes directly to Artifact Registry (avoids Cloud Build queue/quota
+#         issues common on trial GCP accounts).
+# HOW   : Builds run SERIALLY (waitFor) on the default e2-standard-2 worker to
+#         avoid CPU contention. Order: smallest -> largest so failures surface
+#         fast. Each image now has its own slim requirements file (no fat ML
+#         deps where not needed). Total expected wall time: 12-15 min.
+# LAYMAN: This is a recipe Google's build robots follow if you don't want to
+#         build images on your own laptop. We give them the 5 Dockerfiles in
+#         "smallest first" order so a tiny mistake fails in 30s, not 30min.
+# =============================================================================
+# --- 1. Substitutions ---------------------------------------------------------
+# Variables Cloud Build replaces inside this file. start.sh overrides _REPO with
+# the real registry name. _REGION must match where Artifact Registry lives.
+substitutions:
+  _REGION: us-central1
+  _REPO: sentinel-images
+
+# --- 2. Worker options --------------------------------------------------------
+# Pick the build machine + log destination. We deliberately do NOT request
+# E2_HIGHCPU_8 because that pool is heavily oversubscribed on trial accounts
+# (builds queue for 5-30 min before even starting).
+options:
+  logging: CLOUD_LOGGING_ONLY     # send build logs to Cloud Logging (not GCS)
+  dynamic_substitutions: true     # let ${PROJECT_ID}, ${BUILD_ID} expand at runtime
+
+# --- 3. Steps -----------------------------------------------------------------
+# Each step runs `docker build` on one Dockerfile. waitFor chains them so they
+# run one-after-another (no parallel = no CPU contention on the small worker).
+steps:
+  # ----- 3a. traffic-gen (tiny, ~30-60s, no ML) -----
+  - id: build-traffic-gen
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    args:
+      - build
+      - -f
+      - docker/traffic-gen.Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/traffic-gen:${BUILD_ID}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/traffic-gen:latest
+      - .
+
+  # ----- 3b. grafana (no Python, ~1 min) -----
+  # Vanilla Grafana base + 2 datasource plugins + our dashboards baked in.
+  - id: build-grafana
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-traffic-gen"]
+    args:
+      - build
+      - -f
+      - docker/grafana.Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/grafana:${BUILD_ID}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/grafana:latest
+      - .
+
+  # ----- 3c. triage (~2-3 min, sklearn + Gemini, no torch/tf) -----
+  # Cloud Run service that turns raw incidents into Slack-ready summaries.
+  - id: build-triage
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-grafana"]
+    args:
+      - build
+      - -f
+      - docker/triage.Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/triage:${BUILD_ID}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/triage:latest
+      - .
+
+  # ----- 3d. forecaster (~4-6 min, tensorflow-cpu only) -----
+  # Time-series forecaster (LSTM). Loaded by Vertex AI / GKE prediction loop.
+  - id: build-forecaster
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-triage"]
+    args:
+      - build
+      - -f
+      - docker/forecaster.Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/forecaster:${BUILD_ID}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/forecaster:latest
+      - .
+
+  # ----- 3e. victim (~6-8 min, torch-cpu + transformers) -----
+  # Multi-modal recommender: DistilBERT for text + MobileNetV3 stub for image.
+  # Build is heaviest because of HuggingFace weight prefetch.
+  - id: build-victim
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["build-forecaster"]
+    args:
+      - build
+      - -f
+      - docker/victim.Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/victim:${BUILD_ID}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/victim:latest
+      - .
+
+# --- 4. Images to publish -----------------------------------------------------
+# Tells Cloud Build which tags to push to Artifact Registry once steps succeed.
+# We push two tags per image: a unique BUILD_ID (for rollback) and :latest
+# (for terraform / runtime to reference without knowing the build hash).
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/traffic-gen:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/traffic-gen:latest
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/grafana:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/grafana:latest
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/triage:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/triage:latest
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/forecaster:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/forecaster:latest
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/victim:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/victim:latest
+
+# --- 5. Hard wall-clock ceiling ----------------------------------------------
+# 1h max. Anything past this is almost certainly a hung pip install / OOM.
+timeout: 3600s

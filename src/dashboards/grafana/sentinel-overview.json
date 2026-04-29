@@ -1,0 +1,197 @@
+{
+  "title": "Sentinel · Overview",
+  "uid": "sentinel-overview",
+  "tags": ["sentinel", "predictive-alerting"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Recent predictive alerts (BigQuery audit log)",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT fired_at, incident_id, severity, metric_name, endpoint_id, runbook_id, SUBSTR(IFNULL(gemini_report,''),1,200) AS gemini_summary FROM `sentinel-forecast-2544.sentinel_dev_incidents.incidents` ORDER BY fired_at DESC LIMIT 20",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ],
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Alerts fired (last 24h)",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 10 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS cnt FROM `sentinel-forecast-2544.sentinel_dev_incidents.incidents` WHERE fired_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 }] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background" }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Mean lead time (min)",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 10 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT IFNULL(AVG(TIMESTAMP_DIFF(predicted_breach_at, fired_at, MINUTE)), 0) AS mean_lead FROM `sentinel-forecast-2544.sentinel_dev_incidents.incidents` WHERE fired_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "m", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 5 }, { "color": "green", "value": 10 }] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background" }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Distinct runbooks recommended",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 10 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(DISTINCT runbook_id) AS n FROM `sentinel-forecast-2544.sentinel_dev_incidents.incidents` WHERE runbook_id IS NOT NULL",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background" }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Severity breakdown",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 10 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT severity, COUNT(*) AS cnt FROM `sentinel-forecast-2544.sentinel_dev_incidents.incidents` GROUP BY severity ORDER BY cnt DESC",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^cnt$/", "values": false }, "colorMode": "background" }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Telemetry · latency_ms (raw stream)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 15 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 0,
+          "rawQuery": true,
+          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, MINUTE) AS time, AVG(metric_value) AS avg_latency, MAX(metric_value) AS max_latency FROM `sentinel-forecast-2544.sentinel_dev_features.telemetry_raw` WHERE metric_name='latency_ms' AND event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR) GROUP BY time ORDER BY time",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Telemetry · all metrics (per-minute average)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 15 },
+      "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-bigquery-datasource", "uid": "sentinel-bq" },
+          "editorMode": "code",
+          "format": 0,
+          "rawQuery": true,
+          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, MINUTE) AS time, metric_name, AVG(metric_value) AS value FROM `sentinel-forecast-2544.sentinel_dev_features.telemetry_raw` WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR) GROUP BY time, metric_name ORDER BY time",
+          "location": "us-central1",
+          "project": "sentinel-forecast-2544"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Cloud Run · request latency (triage service)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "stackdriver", "uid": "sentinel-cm" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "stackdriver", "uid": "sentinel-cm" },
+          "queryType": "metrics",
+          "metricQuery": {
+            "projectName": "sentinel-forecast-2544",
+            "metricType": "run.googleapis.com/request_latencies",
+            "filters": ["resource.label.service_name", "=", "sentinel-dev-triage"],
+            "groupBys": ["resource.label.service_name"],
+            "perSeriesAligner": "ALIGN_PERCENTILE_95",
+            "crossSeriesReducer": "REDUCE_MEAN",
+            "alignmentPeriod": "+60s"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Cloud Run · request count (all services)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "stackdriver", "uid": "sentinel-cm" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "stackdriver", "uid": "sentinel-cm" },
+          "queryType": "metrics",
+          "metricQuery": {
+            "projectName": "sentinel-forecast-2544",
+            "metricType": "run.googleapis.com/request_count",
+            "groupBys": ["resource.label.service_name"],
+            "perSeriesAligner": "ALIGN_RATE",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "alignmentPeriod": "+60s"
+          }
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] }
+}

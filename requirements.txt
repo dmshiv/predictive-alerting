@@ -1,0 +1,50 @@
+# =============================================================================
+# WHAT  : Python dependencies for local dev + container builds.
+# WHY   : Pinning versions prevents "works on my machine" surprises.
+# HOW   : `pip install -r requirements.txt` (use a venv).
+# =============================================================================
+
+# --- Core GCP SDKs -----------------------------------------------------------
+google-cloud-aiplatform==1.71.0
+google-cloud-storage==2.18.0
+google-cloud-pubsub==2.27.0
+google-cloud-bigquery==3.27.0
+google-cloud-secret-manager==2.21.0
+google-cloud-logging==3.11.0
+google-cloud-monitoring==2.22.0
+
+# --- ML core -----------------------------------------------------------------
+tensorflow==2.17.0
+torch==2.4.1
+transformers==4.45.0
+scikit-learn==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+pyarrow==17.0.0
+
+# --- Pipelines (Vertex AI) ---------------------------------------------------
+kfp==2.7.0
+google-cloud-pipeline-components==2.16.0
+
+# --- Serving -----------------------------------------------------------------
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+
+# --- Gemini (Generative AI) --------------------------------------------------
+google-generativeai==0.8.3
+
+# --- Time-series / forecasting helpers ---------------------------------------
+statsmodels==0.14.4
+
+# --- Utility -----------------------------------------------------------------
+python-dotenv==1.0.1
+PyYAML==6.0.2
+requests==2.32.3
+tenacity==9.0.0
+
+# --- Dev / testing -----------------------------------------------------------
+pytest==8.3.3
+pytest-mock==3.14.0
+ruff==0.7.1
+black==24.10.0

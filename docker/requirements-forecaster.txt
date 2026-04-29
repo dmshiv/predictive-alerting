@@ -1,0 +1,35 @@
+# =============================================================================
+# WHAT  : Python deps for the "forecaster" container only (LSTM + sklearn).
+# WHY   : Forecaster needs TF but NOT torch/transformers - separating shaves
+#         ~1.5GB off the image vs the shared mega-requirements.txt.
+# HOW   : `pip install -r requirements-forecaster.txt` inside forecaster.Dockerfile.
+# LAYMAN: Grocery list for the "weatherman" robot - heavy on math libs, no
+#         text-AI bits.
+# =============================================================================
+
+# --- ML stack (CPU-only TF + classical helpers) -----------------------------
+tensorflow-cpu==2.17.0            # LSTM encoder-decoder
+numpy==1.26.4
+pandas==2.2.3                     # time-series wrangling
+scikit-learn==1.5.2               # baselines + scalers
+statsmodels==0.14.4               # ARIMA fallback for cold start
+
+# --- HTTP serving (used for /forecast eval endpoint) ------------------------
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+
+# --- GCP SDKs ---------------------------------------------------------------
+google-cloud-aiplatform==1.71.0   # call Vertex AI predict
+google-cloud-storage==2.18.0      # load model artefacts
+google-cloud-pubsub==2.27.0       # publish incidents
+google-cloud-bigquery==3.27.0     # read telemetry features
+db-dtypes==1.3.0                  # required by BigQuery -> pandas DataFrame conversion
+google-cloud-secret-manager==2.21.0
+google-cloud-monitoring==2.22.0
+google-cloud-logging==3.11.0
+
+# --- Misc -------------------------------------------------------------------
+pyarrow==17.0.0                   # fast Parquet I/O for BigQuery exports
+PyYAML==6.0.2
+tenacity==9.0.0

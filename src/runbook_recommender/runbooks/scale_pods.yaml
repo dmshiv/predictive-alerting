@@ -1,0 +1,16 @@
+# WHAT: Scale up the GKE detector deployment.
+# WHY:  When traffic spikes, more pods absorb the load.
+runbook_id: scale_pods
+title: Scale GKE detector pods
+description: |
+  Increase the replica count or HPA min-replicas of the detector deployment
+  to absorb traffic bursts.
+when_to_use:
+  - latency
+  - latency_ms
+  - high
+  - burst
+actions:
+  - "kubectl scale deploy/forecast-detector --replicas=5 -n sentinel"
+  - "Or update HPA min: kubectl patch hpa forecast-detector -n sentinel --patch '{\"spec\":{\"minReplicas\":3}}'"
+  - "Watch: kubectl top pods -n sentinel"

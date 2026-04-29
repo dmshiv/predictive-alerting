@@ -1,0 +1,34 @@
+# =============================================================================
+# WHAT  : Python deps for the "triage" Cloud Run service.
+# WHY   : Triage uses Gemini + sklearn clustering. No deep-learning libs needed,
+#         which keeps cold-start fast (Cloud Run pricing is per-100ms!).
+# HOW   : `pip install -r requirements-triage.txt` inside triage.Dockerfile.
+# LAYMAN: Grocery list for the "doctor on call" robot - small, snappy, mostly
+#         API-client libraries.
+# =============================================================================
+
+# --- HTTP serving -----------------------------------------------------------
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+
+# --- Lightweight ML (log clustering only) -----------------------------------
+scikit-learn==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+
+# --- AI: Gemini for natural-language summaries ------------------------------
+google-generativeai==0.8.3
+
+# --- GCP SDKs ---------------------------------------------------------------
+google-cloud-storage==2.18.0
+google-cloud-pubsub==2.27.0
+google-cloud-bigquery==3.27.0     # write incidents table
+google-cloud-secret-manager==2.21.0  # fetch Slack webhook
+google-cloud-monitoring==2.22.0
+google-cloud-logging==3.11.0
+
+# --- Misc -------------------------------------------------------------------
+PyYAML==6.0.2
+tenacity==9.0.0
+requests==2.32.3                  # post to Slack webhook

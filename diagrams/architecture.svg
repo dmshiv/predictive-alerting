@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sentinel-Forecast — Predictive Alerting on GCP
+  Single-file horizontal animated architecture diagram (33 components).
+  Read: top band = platform, 5 columns = data flow, bottom band = network,
+  middle rail = observability. Particles: green=traffic, blue=telemetry,
+  purple=training, orange=alert, red=auto-remediate.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<title>Sentinel-Forecast Architecture</title>
+<defs>
+<linearGradient id="bg" x2="0" y2="1"><stop stop-color="#0B1221"/><stop offset="1" stop-color="#0A0E1A"/></linearGradient>
+<linearGradient id="pn" x2="0" y2="1"><stop stop-color="#1A2236" stop-opacity=".55"/><stop offset="1" stop-color="#0F1525" stop-opacity=".55"/></linearGradient>
+<linearGradient id="cd" x2="0" y2="1"><stop stop-color="#1F2A44"/><stop offset="1" stop-color="#141B2D"/></linearGradient>
+<linearGradient id="gem" x2="1" y2="1"><stop stop-color="#4285F4"/><stop offset=".5" stop-color="#9B72CB"/><stop offset="1" stop-color="#EA4335"/></linearGradient>
+<filter id="g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+
+<!-- Stylized GCP-brand icons (64x64 each) -->
+<symbol id="gce" viewBox="0 0 64 64"><rect x="6" y="14" width="52" height="36" rx="4" fill="#4285F4"/><rect x="10" y="20" width="44" height="22" fill="#1A73E8"/><circle cx="32" cy="31" r="7" fill="#fff"/><text x="32" y="34" text-anchor="middle" font-size="8" fill="#1A73E8" font-weight="700">VM</text></symbol>
+<symbol id="ps" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#EA4335"/><path d="M14 22L32 36L50 22V44H14z" fill="#fff"/><path d="M14 22h36L32 36z" fill="#FBBC04"/></symbol>
+<symbol id="bq" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#4285F4"/><ellipse cx="32" cy="22" rx="18" ry="6" fill="#fff"/><path d="M14 22v20a18 6 0 0 0 36 0V22" fill="none" stroke="#fff" stroke-width="2"/><ellipse cx="32" cy="42" rx="18" ry="6" fill="#fff"/></symbol>
+<symbol id="gcs" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#FBBC04"/><path d="M16 18h32l-4 32H20z" fill="#fff"/><path d="M22 26h20M22 34h20M22 42h20" stroke="#F29900" stroke-width="3"/></symbol>
+<symbol id="vai" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#EA4335"/><path d="M32 14L46 22 46 38 32 46 18 38 18 22z" fill="#fff"/><path d="M32 14L46 22 32 30z" fill="#FBBC04"/><path d="M32 30L46 22 46 38z" fill="#34A853"/><path d="M32 30L46 38 32 46z" fill="#4285F4"/><path d="M32 30L18 38 32 46z" fill="#1A73E8"/><path d="M32 30L18 22 18 38z" fill="#0D47A1"/></symbol>
+<symbol id="wb" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#4285F4"/><rect x="14" y="14" width="36" height="32" rx="2" fill="#fff"/><rect x="14" y="14" width="36" height="6" fill="#EA4335"/><path d="M18 26h28M18 32h20M18 38h24" stroke="#9AA0A6" stroke-width="2"/></symbol>
+<symbol id="pp" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#34A853"/><circle cx="16" cy="32" r="6" fill="#fff"/><circle cx="32" cy="20" r="6" fill="#fff"/><circle cx="32" cy="44" r="6" fill="#fff"/><circle cx="48" cy="32" r="6" fill="#fff"/><path d="M22 32h20M20 28l8-6M20 36l8 6M36 22l8 6M36 42l8-6" stroke="#fff" stroke-width="2"/></symbol>
+<symbol id="tb" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#FF6F00"/><rect x="14" y="14" width="36" height="36" rx="2" fill="#fff"/><polyline points="16,46 24,32 32,38 40,22 48,28" stroke="#FF6F00" stroke-width="3" fill="none" stroke-linejoin="round"/></symbol>
+<symbol id="reg" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#A142F4"/><rect x="14" y="16" width="36" height="10" rx="2" fill="#fff"/><rect x="14" y="28" width="36" height="10" rx="2" fill="#fff" opacity=".85"/><rect x="14" y="40" width="36" height="10" rx="2" fill="#fff" opacity=".7"/><circle cx="20" cy="21" r="2" fill="#A142F4"/><circle cx="20" cy="33" r="2" fill="#A142F4"/><circle cx="20" cy="45" r="2" fill="#A142F4"/></symbol>
+<symbol id="sch" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#1A73E8"/><circle cx="32" cy="32" r="18" fill="#fff"/><path d="M32 32V20M32 32l10 4" stroke="#1A73E8" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="gke" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#326CE5"/><polygon points="32,12 48,22 48,42 32,52 16,42 16,22" fill="none" stroke="#fff" stroke-width="3"/><circle cx="32" cy="32" r="6" fill="#fff"/></symbol>
+<symbol id="cr" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#4285F4"/><rect x="14" y="14" width="36" height="36" rx="3" fill="#fff"/><path d="M22 32h20M34 24l8 8-8 8" stroke="#4285F4" stroke-width="4" fill="none" stroke-linecap="round"/></symbol>
+<symbol id="mm" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#9C27B0"/><polyline points="10,32 20,32 24,22 30,42 36,26 42,32 54,32" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round"/></symbol>
+<symbol id="gm" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="url(#gem)"/><path d="M32 12l4 16 16 4-16 4-4 16-4-16-16-4 16-4z" fill="#fff"/></symbol>
+<symbol id="iam" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#1A73E8"/><path d="M32 12l16 6v16c0 8-16 18-16 18S16 42 16 34V18z" fill="#fff"/><path d="M24 32l6 6 12-12" stroke="#1A73E8" stroke-width="3" fill="none" stroke-linecap="round"/></symbol>
+<symbol id="ar" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#4285F4"/><path d="M14 22L32 14L50 22V44L32 52L14 44z" fill="#fff"/><path d="M14 22L32 30L50 22M32 30v22" stroke="#4285F4" stroke-width="2"/></symbol>
+<symbol id="cb" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#34A853"/><rect x="20" y="14" width="24" height="14" rx="2" fill="#fff"/><rect x="30" y="28" width="4" height="22" fill="#fff"/></symbol>
+<symbol id="sm" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#FBBC04"/><rect x="18" y="28" width="28" height="22" rx="3" fill="#fff"/><path d="M22 28v-6a10 10 0 0 1 20 0v6" stroke="#fff" stroke-width="3" fill="none"/></symbol>
+<symbol id="lg" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#34A853"/><rect x="14" y="16" width="36" height="32" rx="2" fill="#fff"/><path d="M18 22h28M18 28h24M18 34h26M18 40h20" stroke="#34A853" stroke-width="2"/></symbol>
+<symbol id="au" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#34A853"/><circle cx="28" cy="28" r="12" fill="none" stroke="#fff" stroke-width="3"/><line x1="38" y1="38" x2="50" y2="50" stroke="#fff" stroke-width="4" stroke-linecap="round"/></symbol>
+<symbol id="vpc" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#4285F4"/><circle cx="20" cy="20" r="4" fill="#fff"/><circle cx="44" cy="20" r="4" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#fff"/><circle cx="20" cy="44" r="4" fill="#fff"/><circle cx="44" cy="44" r="4" fill="#fff"/><path d="M20 20l12 12M44 20L32 32M20 44l12-12M44 44L32 32" stroke="#fff" stroke-width="1.5"/></symbol>
+<symbol id="nat" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#5F6368"/><path d="M14 24h28v-6l10 10-10 10v-6H14zM50 40H22v-6L12 44l10 10v-6h28z" fill="#fff"/></symbol>
+<symbol id="dns" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#1A73E8"/><circle cx="32" cy="32" r="18" fill="#fff"/><ellipse cx="32" cy="32" rx="18" ry="8" fill="none" stroke="#1A73E8" stroke-width="1.5"/><ellipse cx="32" cy="32" rx="8" ry="18" fill="none" stroke="#1A73E8" stroke-width="1.5"/></symbol>
+<symbol id="lb" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#4285F4"/><line x1="32" y1="14" x2="32" y2="50" stroke="#fff" stroke-width="3"/><line x1="14" y1="20" x2="50" y2="20" stroke="#fff" stroke-width="3"/><rect x="10" y="22" width="12" height="14" rx="2" fill="#fff"/><rect x="42" y="22" width="12" height="14" rx="2" fill="#fff"/></symbol>
+<symbol id="armor" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#EA4335"/><path d="M32 12l16 6v16c0 8-16 18-16 18S16 42 16 34V18z" fill="#fff"/><path d="M32 20v22M26 26h12" stroke="#EA4335" stroke-width="3"/></symbol>
+<symbol id="cm" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#1A73E8"/><path d="M14 40a18 18 0 0 1 36 0" fill="none" stroke="#fff" stroke-width="3"/><line x1="32" y1="40" x2="44" y2="24" stroke="#FBBC04" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="40" r="3" fill="#fff"/></symbol>
+<symbol id="prom" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#E6522C"/><path d="M32 12c4 10 12 12 12 24 0 10-6 16-12 16s-12-6-12-16c0-8 6-6 6-14 4 4 6 0 6-10z" fill="#fff"/></symbol>
+<symbol id="graf" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#F46800"/><circle cx="32" cy="32" r="8" fill="#fff"/><circle cx="32" cy="16" r="5" fill="#fff"/><circle cx="48" cy="32" r="5" fill="#fff"/><circle cx="32" cy="48" r="5" fill="#fff"/><circle cx="16" cy="32" r="5" fill="#fff"/></symbol>
+<symbol id="brw" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#5F6368"/><rect x="12" y="14" width="40" height="36" rx="2" fill="#fff"/><rect x="12" y="14" width="40" height="6" fill="#EA4335"/><path d="M16 28h32M16 36h20M16 42h28" stroke="#9AA0A6" stroke-width="3"/></symbol>
+<symbol id="sl" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#1F2A44"/><rect x="14" y="22" width="20" height="6" rx="3" fill="#E01E5A"/><rect x="30" y="14" width="6" height="20" rx="3" fill="#36C5F0"/><rect x="30" y="36" width="20" height="6" rx="3" fill="#2EB67D"/><rect x="28" y="30" width="6" height="20" rx="3" fill="#ECB22E"/></symbol>
+<symbol id="em" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#EA4335"/><rect x="12" y="18" width="40" height="28" rx="2" fill="#fff"/><path d="M12 18l20 18 20-18" stroke="#EA4335" stroke-width="2.5" fill="none"/></symbol>
+<symbol id="ch" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="6" fill="#A142F4"/><circle cx="32" cy="22" r="8" fill="#fff"/><path d="M16 50c0-10 8-16 16-16s16 6 16 16" fill="#fff"/></symbol>
+
+<!-- Mini sub-icons -->
+<symbol id="snlp" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#EE4C2C"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">NLP</text></symbol>
+<symbol id="scv" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#FF6F00"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">CV</text></symbol>
+<symbol id="srec" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#34A853"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Rec</text></symbol>
+<symbol id="stft" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#FF6F00"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">TFT</text></symbol>
+
+<!-- Flow paths (used by animateMotion) -->
+<path id="f1" d="M260,300 C340,300 360,300 440,290" fill="none"/>
+<path id="f2" d="M620,290 C760,290 1100,290 1240,295" fill="none"/>
+<path id="f3" d="M1320,330 L1320,400" fill="none"/>
+<path id="f4" d="M1320,440 C1100,440 800,400 620,390" fill="none"/>
+<path id="f5" d="M540,420 L540,470" fill="none"/>
+<path id="f6" d="M620,500 C800,520 1100,560 1240,610" fill="none"/>
+<path id="f7" d="M620,500 C700,500 760,385 880,385" fill="none"/>
+<path id="f8" d="M880,420 C880,440 900,470 960,475" fill="none"/>
+<path id="f9" d="M1040,560 C1080,560 1120,560 1240,560" fill="none"/>
+<path id="f10" d="M880,560 C900,540 920,400 1240,395" fill="none"/>
+<path id="fa1" d="M1380,620 C1480,620 1520,295 1600,290" fill="none"/>
+<path id="fa2" d="M1680,330 L1680,400" fill="none"/>
+<path id="fa3" d="M1680,510 C1640,540 1620,560 1600,575" fill="none"/>
+<path id="fa4" d="M1680,510 C1720,540 1740,560 1730,575" fill="none"/>
+<path id="fr" d="M1600,460 C1500,460 1450,420 1400,400" fill="none"/>
+<path id="o1" d="M180,720 L180,830" fill="none"/>
+<path id="o2" d="M540,720 L540,830" fill="none"/>
+<path id="o3" d="M900,720 L900,830" fill="none"/>
+<path id="o4" d="M1260,720 L1260,830" fill="none"/>
+<path id="o5" d="M1620,720 L1620,830" fill="none"/>
+<path id="oa" d="M340,860 L440,860" fill="none"/>
+<path id="ob" d="M700,860 L800,860" fill="none"/>
+<path id="oc" d="M1180,860 L1380,860" fill="none"/>
+</defs>
+
+<!-- BACKGROUND -->
+<rect width="1920" height="1200" fill="url(#bg)"/>
+
+<!-- HEADER -->
+<text x="60" y="56" font-size="40" font-weight="800" fill="#fff">Sentinel-Forecast</text>
+<text x="60" y="86" font-size="17" fill="#9AA0A6">Predictive alerting for ML models on Google Cloud — fire the alert <tspan fill="#22C55E" font-weight="700">before</tspan> the SLO breaks.</text>
+<g transform="translate(960,40)" font-size="13" fill="#cdd5e0">
+  <text x="0" y="14" font-weight="700" fill="#fff">Flow legend</text>
+  <g transform="translate(0,24)"><circle cx="6" cy="6" r="5" fill="#22C55E" filter="url(#g)"/><text x="20" y="10">Live traffic</text></g>
+  <g transform="translate(120,24)"><circle cx="6" cy="6" r="5" fill="#3B82F6" filter="url(#g)"/><text x="20" y="10">Telemetry</text></g>
+  <g transform="translate(240,24)"><circle cx="6" cy="6" r="5" fill="#A855F7" filter="url(#g)"/><text x="20" y="10">Training</text></g>
+  <g transform="translate(360,24)"><circle cx="6" cy="6" r="5" fill="#F59E0B" filter="url(#g)"/><text x="20" y="10">Alert</text></g>
+  <g transform="translate(450,24)"><circle cx="6" cy="6" r="5" fill="#EF4444" filter="url(#g)"/><text x="20" y="10">Auto-remediate</text></g>
+</g>
+<g transform="translate(1700,40)">
+  <rect width="180" height="50" rx="25" fill="#0F1525" stroke="#22C55E" stroke-width="2"/>
+  <circle cx="25" cy="25" r="8" fill="#22C55E" filter="url(#g)"><animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></circle>
+  <text x="50" y="30" font-size="14" font-weight="700" fill="#22C55E">HEALTHY · LIVE</text>
+</g>
+
+<!-- TOP PLATFORM BAND -->
+<rect x="40" y="110" width="1840" height="80" rx="10" fill="url(#pn)" stroke="#2A3552"/>
+<text x="60" y="135" font-size="11" font-weight="700" fill="#9AA0A6" letter-spacing="2">PLATFORM SERVICES · cross-cutting</text>
+<g transform="translate(60,145)"><use href="#iam" width="36" height="36"/><text x="44" y="14" fill="#fff" font-size="12" font-weight="700">IAM</text><text x="44" y="28" fill="#9AA0A6" font-size="10">Service accts · roles</text></g>
+<g transform="translate(360,145)"><use href="#ar" width="36" height="36"/><text x="44" y="14" fill="#fff" font-size="12" font-weight="700">Artifact Registry</text><text x="44" y="28" fill="#9AA0A6" font-size="10">Docker images</text></g>
+<g transform="translate(660,145)"><use href="#cb" width="36" height="36"/><text x="44" y="14" fill="#fff" font-size="12" font-weight="700">Cloud Build</text><text x="44" y="28" fill="#9AA0A6" font-size="10">Builds &amp; pushes</text></g>
+<g transform="translate(960,145)"><use href="#sm" width="36" height="36"/><text x="44" y="14" fill="#fff" font-size="12" font-weight="700">Secret Manager</text><text x="44" y="28" fill="#9AA0A6" font-size="10">Gemini · Slack hook</text></g>
+<g transform="translate(1260,145)"><use href="#lg" width="36" height="36"/><text x="44" y="14" fill="#fff" font-size="12" font-weight="700">Cloud Logging</text><text x="44" y="28" fill="#9AA0A6" font-size="10">Structured logs</text></g>
+<g transform="translate(1560,145)"><use href="#au" width="36" height="36"/><text x="44" y="14" fill="#fff" font-size="12" font-weight="700">Audit Logs</text><text x="44" y="28" fill="#9AA0A6" font-size="10">Who did what</text></g>
+
+<!-- COLUMN PANELS -->
+<rect x="60" y="210" width="280" height="510" rx="14" fill="url(#pn)" stroke="#22C55E" stroke-opacity=".4"/>
+<text x="200" y="234" text-anchor="middle" font-size="13" font-weight="800" fill="#22C55E" letter-spacing="3">1 · INGEST</text>
+<rect x="420" y="210" width="280" height="510" rx="14" fill="url(#pn)" stroke="#3B82F6" stroke-opacity=".4"/>
+<text x="560" y="234" text-anchor="middle" font-size="13" font-weight="800" fill="#3B82F6" letter-spacing="3">2 · STORE</text>
+<rect x="780" y="210" width="280" height="510" rx="14" fill="url(#pn)" stroke="#A855F7" stroke-opacity=".4"/>
+<text x="920" y="234" text-anchor="middle" font-size="13" font-weight="800" fill="#A855F7" letter-spacing="3">3 · TRAIN</text>
+<rect x="1140" y="210" width="280" height="510" rx="14" fill="url(#pn)" stroke="#22C55E" stroke-opacity=".4"/>
+<text x="1280" y="234" text-anchor="middle" font-size="13" font-weight="800" fill="#22C55E" letter-spacing="3">4 · SERVE</text>
+<rect x="1500" y="210" width="280" height="510" rx="14" fill="url(#pn)" stroke="#F59E0B" stroke-opacity=".4"/>
+<text x="1640" y="234" text-anchor="middle" font-size="13" font-weight="800" fill="#F59E0B" letter-spacing="3">5 · TRIAGE</text>
+
+<!-- COL1 INGEST -->
+<g transform="translate(80,260)"><rect width="240" height="80" rx="10" fill="url(#cd)" stroke="#22C55E" stroke-opacity=".6"/><use href="#gce" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">Compute Engine</text><text x="80" y="48" fill="#9AA0A6" font-size="11">Load Gen VM · systemd</text><text x="80" y="64" fill="#22C55E" font-size="10" font-weight="700">JD: Compute Engine</text><circle cx="220" cy="20" r="5" fill="#22C55E" filter="url(#g)"><animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/></circle></g>
+<g transform="translate(80,380)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#A142F4" stroke-opacity=".6"/><use href="#ch" x="14" y="10" width="48" height="48"/><text x="74" y="28" fill="#fff" font-size="13" font-weight="700">chaos_inject.py</text><text x="74" y="44" fill="#9AA0A6" font-size="10">drift · latency · burst · off</text><text x="74" y="58" fill="#A142F4" font-size="9" font-weight="700">manual demo trigger</text></g>
+<path d="M200,380 L200,340" stroke="#A142F4" stroke-width="2" stroke-dasharray="4 4" opacity=".6"/>
+<g transform="translate(80,485)" font-size="10" fill="#9AA0A6"><text font-weight="700" fill="#cdd5e0">What happens here</text><text y="16">• systemd runs traffic_generator.py 24×7</text><text y="30">• Default: 30 req/sec baseline</text><text y="44">• chaos_inject flips mode for the demo</text><text y="58">• Auto-resets to baseline after timer</text></g>
+
+<!-- COL2 STORE -->
+<g transform="translate(440,260)"><rect width="240" height="60" rx="10" fill="url(#cd)" stroke="#3B82F6" stroke-opacity=".6"/><use href="#ps" x="10" y="6" width="48" height="48"/><text x="68" y="26" fill="#fff" font-size="13" font-weight="700">Pub/Sub</text><text x="68" y="42" fill="#9AA0A6" font-size="10">topic: raw-traffic</text></g>
+<g transform="translate(440,360)"><rect width="240" height="60" rx="10" fill="url(#cd)" stroke="#3B82F6" stroke-opacity=".6"/><use href="#ps" x="10" y="6" width="48" height="48"/><text x="68" y="26" fill="#fff" font-size="13" font-weight="700">Pub/Sub</text><text x="68" y="42" fill="#9AA0A6" font-size="10">topic: telemetry</text></g>
+<g transform="translate(440,460)"><rect width="240" height="80" rx="10" fill="url(#cd)" stroke="#3B82F6" stroke-opacity=".6"/><use href="#bq" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">BigQuery</text><text x="80" y="48" fill="#9AA0A6" font-size="10">features · incidents · audit</text><text x="80" y="64" fill="#3B82F6" font-size="10" font-weight="700">JD: BigQuery</text></g>
+<g transform="translate(440,580)"><rect width="240" height="80" rx="10" fill="url(#cd)" stroke="#3B82F6" stroke-opacity=".6"/><use href="#gcs" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">Cloud Storage</text><text x="80" y="48" fill="#9AA0A6" font-size="10">data · models · tb-logs</text><text x="80" y="64" fill="#3B82F6" font-size="10" font-weight="700">JD: Cloud Storage</text></g>
+
+<!-- COL3 TRAIN -->
+<g transform="translate(800,260)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#A855F7" stroke-opacity=".6"/><use href="#wb" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Vertex Workbench</text><text x="70" y="44" fill="#9AA0A6" font-size="10">JupyterLab for EDA</text><text x="70" y="58" fill="#A855F7" font-size="9" font-weight="700">JD: Workbench</text></g>
+<g transform="translate(800,350)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#A855F7" stroke-opacity=".6"/><use href="#pp" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Vertex Pipelines</text><text x="70" y="44" fill="#9AA0A6" font-size="10">KFP DAG · auto-retrain</text><text x="70" y="58" fill="#A855F7" font-size="9" font-weight="700">JD: Pipelines</text></g>
+<g transform="translate(800,440)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#A855F7" stroke-opacity=".6"/><use href="#tb" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Vertex TensorBoard</text><text x="70" y="44" fill="#9AA0A6" font-size="10">loss · metrics</text><text x="70" y="58" fill="#A855F7" font-size="9" font-weight="700">JD: TensorBoard</text></g>
+<g transform="translate(800,530)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#A855F7" stroke-opacity=".6"/><use href="#reg" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Model Registry</text><text x="70" y="44" fill="#9AA0A6" font-size="10">versioned models</text><text x="70" y="58" fill="#A855F7" font-size="9" font-weight="700">JD: Vertex AI</text></g>
+<g transform="translate(800,620)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#A855F7" stroke-opacity=".6"/><use href="#sch" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Cloud Scheduler</text><text x="70" y="44" fill="#9AA0A6" font-size="10">nightly retrain trigger</text><text x="70" y="58" fill="#A855F7" font-size="9" font-weight="700">cron jobs</text></g>
+
+<!-- COL4 SERVE -->
+<g transform="translate(1160,260)"><rect width="240" height="70" rx="10" fill="url(#cd)" stroke="#22C55E" stroke-opacity=".6"/><use href="#gke" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">GKE Autopilot</text><text x="70" y="44" fill="#9AA0A6" font-size="10">detector + telemetry pods</text><text x="70" y="58" fill="#22C55E" font-size="9" font-weight="700">JD: Kubernetes</text><circle cx="220" cy="20" r="5" fill="#22C55E" filter="url(#g)"><animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/></circle></g>
+<g transform="translate(1160,350)"><rect width="240" height="100" rx="10" fill="url(#cd)" stroke="#EA4335" stroke-opacity=".7"/><use href="#vai" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Vertex Endpoint #1</text><text x="70" y="44" fill="#9AA0A6" font-size="10">AI #1 · the patient</text><text x="70" y="58" fill="#EA4335" font-size="9" font-weight="700">multi-modal recommender</text><g transform="translate(14,68)"><use href="#snlp" width="26" height="26"/><use href="#scv" x="34" width="26" height="26"/><use href="#srec" x="68" width="26" height="26"/><text x="106" y="18" fill="#9AA0A6" font-size="9">PyTorch · TF · two-tower</text></g></g>
+<g transform="translate(1160,470)"><rect width="240" height="60" rx="10" fill="url(#cd)" stroke="#9C27B0" stroke-opacity=".6"/><use href="#mm" x="10" y="6" width="48" height="48"/><text x="68" y="26" fill="#fff" font-size="13" font-weight="700">Model Monitoring</text><text x="68" y="42" fill="#9AA0A6" font-size="10">drift · skew · feature stats</text></g>
+<g transform="translate(1160,560)"><rect width="240" height="100" rx="10" fill="url(#cd)" stroke="#FF6F00" stroke-opacity=".7"/><use href="#vai" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Vertex Endpoint #2</text><text x="70" y="44" fill="#9AA0A6" font-size="10">AI #2 · the doctor</text><text x="70" y="58" fill="#FF6F00" font-size="9" font-weight="700">time-series forecaster</text><g transform="translate(14,68)"><use href="#stft" width="26" height="26"/><text x="34" y="18" fill="#9AA0A6" font-size="9">TensorFlow · TFT/LSTM</text></g></g>
+
+<!-- COL5 TRIAGE -->
+<g transform="translate(1520,260)"><rect width="240" height="60" rx="10" fill="url(#cd)" stroke="#F59E0B" stroke-opacity=".6"/><use href="#ps" x="10" y="6" width="48" height="48"/><text x="68" y="26" fill="#fff" font-size="13" font-weight="700">Pub/Sub</text><text x="68" y="42" fill="#9AA0A6" font-size="10">topic: incidents</text></g>
+<g transform="translate(1520,350)"><rect width="240" height="160" rx="10" fill="url(#cd)" stroke="#F59E0B" stroke-opacity=".7"/><use href="#cr" x="10" y="10" width="50" height="50"/><text x="70" y="28" fill="#fff" font-size="13" font-weight="700">Cloud Run · Triage</text><text x="70" y="44" fill="#9AA0A6" font-size="10">FastAPI orchestrator</text><text x="70" y="58" fill="#F59E0B" font-size="9" font-weight="700">handles every alert</text>
+  <g transform="translate(14,72)"><rect width="212" height="26" rx="5" fill="#0F1525"/><use href="#gm" x="2" y="2" width="22" height="22"/><text x="32" y="17" fill="#fff" font-size="11" font-weight="700">Gemini</text><text x="86" y="17" fill="#9AA0A6" font-size="9">writes incident report</text></g>
+  <g transform="translate(14,104)"><rect width="212" height="26" rx="5" fill="#0F1525"/><use href="#srec" x="2" y="2" width="22" height="22"/><text x="32" y="17" fill="#fff" font-size="11" font-weight="700">RecSys</text><text x="86" y="17" fill="#9AA0A6" font-size="9">recommends runbook</text></g>
+  <g transform="translate(14,134)"><rect width="212" height="20" rx="5" fill="#0F1525"/><use href="#snlp" x="2" y="-3" width="22" height="22"/><text x="32" y="14" fill="#fff" font-size="11" font-weight="700">NLP · Log clusterer</text></g>
+</g>
+<g transform="translate(1520,540)"><rect width="115" height="70" rx="10" fill="url(#cd)" stroke="#F59E0B" stroke-opacity=".5" stroke-dasharray="4 3"/><use href="#sl" x="8" y="10" width="40" height="40"/><text x="54" y="28" fill="#fff" font-size="12" font-weight="700">Slack</text><text x="54" y="42" fill="#9AA0A6" font-size="9">optional</text></g>
+<g transform="translate(1645,540)"><rect width="115" height="70" rx="10" fill="url(#cd)" stroke="#F59E0B" stroke-opacity=".5" stroke-dasharray="4 3"/><use href="#em" x="8" y="10" width="40" height="40"/><text x="54" y="28" fill="#fff" font-size="12" font-weight="700">Email</text><text x="54" y="42" fill="#9AA0A6" font-size="9">always-on</text></g>
+<g transform="translate(1520,640)" font-size="10" fill="#9AA0A6"><text font-weight="700" fill="#cdd5e0">When alert fires</text><text y="14">• Gemini drafts root-cause hypothesis</text><text y="28">• RecSys suggests runbook (87% match)</text><text y="42">• Auto-remediate (rollback · scale)</text></g>
+
+<!-- ANIMATED FLOW PATHS (visible dashed lines underneath particles) -->
+<g fill="none" stroke-width="2" opacity=".35">
+<use href="#f1" stroke="#22C55E"/><use href="#f2" stroke="#22C55E"/><use href="#f3" stroke="#22C55E"/>
+<use href="#f4" stroke="#3B82F6"/><use href="#f5" stroke="#3B82F6"/><use href="#f6" stroke="#3B82F6"/>
+<use href="#f7" stroke="#A855F7"/><use href="#f8" stroke="#A855F7"/><use href="#f9" stroke="#A855F7"/><use href="#f10" stroke="#A855F7"/>
+<use href="#fa1" stroke="#F59E0B"/><use href="#fa2" stroke="#F59E0B"/><use href="#fa3" stroke="#F59E0B"/><use href="#fa4" stroke="#F59E0B"/>
+<use href="#fr" stroke="#EF4444" stroke-dasharray="6 4"/>
+<use href="#o1" stroke="#3B82F6" opacity=".25"/><use href="#o2" stroke="#3B82F6" opacity=".25"/><use href="#o3" stroke="#3B82F6" opacity=".25"/><use href="#o4" stroke="#3B82F6" opacity=".25"/><use href="#o5" stroke="#3B82F6" opacity=".25"/>
+<use href="#oa" stroke="#3B82F6"/><use href="#ob" stroke="#3B82F6"/><use href="#oc" stroke="#3B82F6"/>
+</g>
+
+<!-- TRAVELING PARTICLES (the live traffic) -->
+<g filter="url(#g)">
+<!-- Green: traffic -->
+<circle r="5" fill="#22C55E"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#f1"/></animateMotion></circle>
+<circle r="5" fill="#22C55E"><animateMotion dur="3s" begin="1s" repeatCount="indefinite"><mpath href="#f1"/></animateMotion></circle>
+<circle r="5" fill="#22C55E"><animateMotion dur="3.5s" repeatCount="indefinite"><mpath href="#f2"/></animateMotion></circle>
+<circle r="5" fill="#22C55E"><animateMotion dur="3.5s" begin="1.5s" repeatCount="indefinite"><mpath href="#f2"/></animateMotion></circle>
+<circle r="5" fill="#22C55E"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#f3"/></animateMotion></circle>
+<!-- Blue: telemetry -->
+<circle r="4" fill="#3B82F6"><animateMotion dur="4s" repeatCount="indefinite"><mpath href="#f4"/></animateMotion></circle>
+<circle r="4" fill="#3B82F6"><animateMotion dur="4s" begin="2s" repeatCount="indefinite"><mpath href="#f4"/></animateMotion></circle>
+<circle r="4" fill="#3B82F6"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#f5"/></animateMotion></circle>
+<circle r="4" fill="#3B82F6"><animateMotion dur="5s" repeatCount="indefinite"><mpath href="#f6"/></animateMotion></circle>
+<!-- Purple: training -->
+<circle r="4" fill="#A855F7"><animateMotion dur="6s" repeatCount="indefinite"><mpath href="#f7"/></animateMotion></circle>
+<circle r="4" fill="#A855F7"><animateMotion dur="3s" begin="2s" repeatCount="indefinite"><mpath href="#f8"/></animateMotion></circle>
+<circle r="4" fill="#A855F7"><animateMotion dur="6s" begin="1s" repeatCount="indefinite"><mpath href="#f9"/></animateMotion></circle>
+<circle r="4" fill="#A855F7"><animateMotion dur="7s" repeatCount="indefinite"><mpath href="#f10"/></animateMotion></circle>
+<!-- Orange: alert (sparser) -->
+<circle r="5" fill="#F59E0B"><animateMotion dur="2.5s" repeatCount="indefinite"><mpath href="#fa1"/></animateMotion></circle>
+<circle r="5" fill="#F59E0B"><animateMotion dur="2.5s" begin="1.2s" repeatCount="indefinite"><mpath href="#fa1"/></animateMotion></circle>
+<circle r="4" fill="#F59E0B"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#fa2"/></animateMotion></circle>
+<circle r="4" fill="#F59E0B"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#fa3"/></animateMotion></circle>
+<circle r="4" fill="#F59E0B"><animateMotion dur="1.5s" begin=".7s" repeatCount="indefinite"><mpath href="#fa4"/></animateMotion></circle>
+<!-- Observability rails -->
+<circle r="3" fill="#3B82F6" opacity=".7"><animateMotion dur="4s" repeatCount="indefinite"><mpath href="#o1"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6" opacity=".7"><animateMotion dur="4s" begin="1s" repeatCount="indefinite"><mpath href="#o2"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6" opacity=".7"><animateMotion dur="4s" begin="2s" repeatCount="indefinite"><mpath href="#o3"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6" opacity=".7"><animateMotion dur="4s" begin="3s" repeatCount="indefinite"><mpath href="#o4"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6" opacity=".7"><animateMotion dur="4s" begin="2.5s" repeatCount="indefinite"><mpath href="#o5"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#oa"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6"><animateMotion dur="2s" begin=".5s" repeatCount="indefinite"><mpath href="#ob"/></animateMotion></circle>
+<circle r="3" fill="#3B82F6"><animateMotion dur="2.5s" repeatCount="indefinite"><mpath href="#oc"/></animateMotion></circle>
+</g>
+
+<!-- OBSERVE RAIL -->
+<rect x="40" y="780" width="1840" height="160" rx="14" fill="url(#pn)" stroke="#3B82F6" stroke-opacity=".45"/>
+<text x="60" y="804" font-size="11" font-weight="700" fill="#3B82F6" letter-spacing="3">OBSERVABILITY · unified pane of glass</text>
+<g transform="translate(80,830)"><rect width="260" height="80" rx="10" fill="url(#cd)" stroke="#3B82F6" stroke-opacity=".6"/><use href="#cm" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">Cloud Monitoring</text><text x="80" y="48" fill="#9AA0A6" font-size="10">SLOs · alerts · uptime</text><text x="80" y="64" fill="#3B82F6" font-size="10" font-weight="700">GCP-native</text></g>
+<g transform="translate(440,830)"><rect width="260" height="80" rx="10" fill="url(#cd)" stroke="#E6522C" stroke-opacity=".6"/><use href="#prom" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">Managed Prometheus</text><text x="80" y="48" fill="#9AA0A6" font-size="10">scrapes GKE workloads</text><text x="80" y="64" fill="#E6522C" font-size="10" font-weight="700">PromQL</text></g>
+<g transform="translate(800,830)"><rect width="380" height="80" rx="10" fill="url(#cd)" stroke="#F46800" stroke-opacity=".6"/><use href="#graf" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">Grafana on Cloud Run</text><text x="80" y="48" fill="#9AA0A6" font-size="10">live forecast bands · all 33 tools panelized</text><text x="80" y="64" fill="#F46800" font-size="10" font-weight="700">the rich dashboard</text></g>
+<g transform="translate(1380,830)"><rect width="200" height="80" rx="10" fill="url(#cd)" stroke="#5F6368" stroke-opacity=".6"/><use href="#brw" x="14" y="14" width="52" height="52"/><text x="80" y="32" fill="#fff" font-size="14" font-weight="700">You / Engineer</text><text x="80" y="48" fill="#9AA0A6" font-size="10">screen-shares this</text><text x="80" y="64" fill="#5F6368" font-size="10" font-weight="700">in the interview</text></g>
+<g transform="translate(1620,830)" font-size="10" fill="#9AA0A6"><text y="14" font-weight="700" fill="#cdd5e0">Why both?</text><text y="30">• Cloud Monitoring: SLO alerts</text><text y="44">• Grafana: rich live demo</text><text y="58">• Best of GCP-native + OSS</text></g>
+
+<!-- BOTTOM NETWORK BAND -->
+<rect x="40" y="960" width="1840" height="100" rx="10" fill="url(#pn)" stroke="#4285F4" stroke-opacity=".4"/>
+<text x="60" y="985" font-size="11" font-weight="700" fill="#4285F4" letter-spacing="2">NETWORK · TCP/IP · DNS · LB · Routing  (JD: TCP/IP, DNS, load balancing, routing)</text>
+<g transform="translate(80,1000)"><use href="#vpc" width="44" height="44"/><text x="52" y="18" fill="#fff" font-size="13" font-weight="700">VPC</text><text x="52" y="34" fill="#9AA0A6" font-size="10">private subnets</text></g>
+<g transform="translate(440,1000)"><use href="#nat" width="44" height="44"/><text x="52" y="18" fill="#fff" font-size="13" font-weight="700">Cloud NAT</text><text x="52" y="34" fill="#9AA0A6" font-size="10">egress for private VMs</text></g>
+<g transform="translate(800,1000)"><use href="#dns" width="44" height="44"/><text x="52" y="18" fill="#fff" font-size="13" font-weight="700">Cloud DNS</text><text x="52" y="34" fill="#9AA0A6" font-size="10">private zone</text></g>
+<g transform="translate(1160,1000)"><use href="#lb" width="44" height="44"/><text x="52" y="18" fill="#fff" font-size="13" font-weight="700">Cloud LB</text><text x="52" y="34" fill="#9AA0A6" font-size="10">HTTPS frontends</text></g>
+<g transform="translate(1520,1000)"><use href="#armor" width="44" height="44"/><text x="52" y="18" fill="#fff" font-size="13" font-weight="700">Cloud Armor</text><text x="52" y="34" fill="#9AA0A6" font-size="10">WAF · rate limit</text></g>
+
+<!-- DEMO STORYBOARD STRIP -->
+<g transform="translate(40,1090)" font-size="11" fill="#cdd5e0">
+<rect width="1840" height="90" rx="10" fill="url(#pn)" stroke="#22C55E" stroke-opacity=".25"/>
+<text x="20" y="22" font-weight="700" fill="#22C55E" letter-spacing="2">90-SECOND DEMO STORYBOARD</text>
+<g transform="translate(20,40)">
+  <g><circle cx="14" cy="14" r="14" fill="#22C55E"/><text x="14" y="19" text-anchor="middle" fill="#0B1221" font-weight="700">1</text><text x="36" y="12" fill="#fff" font-weight="700">Healthy</text><text x="36" y="28" fill="#9AA0A6">Grafana all green</text></g>
+  <g transform="translate(360,0)"><circle cx="14" cy="14" r="14" fill="#A142F4"/><text x="14" y="19" text-anchor="middle" fill="#fff" font-weight="700">2</text><text x="36" y="12" fill="#fff" font-weight="700">Inject drift</text><text x="36" y="28" fill="#9AA0A6">make demo-drift</text></g>
+  <g transform="translate(720,0)"><circle cx="14" cy="14" r="14" fill="#FBBC04"/><text x="14" y="19" text-anchor="middle" fill="#0B1221" font-weight="700">3</text><text x="36" y="12" fill="#fff" font-weight="700">Forecast bends</text><text x="36" y="28" fill="#9AA0A6">band approaches SLO</text></g>
+  <g transform="translate(1080,0)"><circle cx="14" cy="14" r="14" fill="#F59E0B"/><text x="14" y="19" text-anchor="middle" fill="#0B1221" font-weight="700">4</text><text x="36" y="12" fill="#fff" font-weight="700">Predictive alert</text><text x="36" y="28" fill="#9AA0A6">~6 min before breach</text></g>
+  <g transform="translate(1440,0)"><circle cx="14" cy="14" r="14" fill="#EF4444"/><text x="14" y="19" text-anchor="middle" fill="#fff" font-weight="700">5</text><text x="36" y="12" fill="#fff" font-weight="700">Auto-remediate</text><text x="36" y="28" fill="#9AA0A6">rollback · SLO never broke</text></g>
+</g>
+</g>
+
+</svg>

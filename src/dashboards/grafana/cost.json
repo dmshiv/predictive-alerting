@@ -1,0 +1,13 @@
+{
+  "title": "Sentinel · Cost",
+  "uid": "sentinel-cost",
+  "schemaVersion": 39,
+  "refresh": "5m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {"id": 1, "type": "barchart", "title": "Daily cost per service ($USD)",
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
+      "targets": [{"datasource": "BigQuery",
+        "rawSql": "SELECT DATE(usage_start_time) AS day, service.description AS service, SUM(cost) AS cost FROM `${project}.sentinel_${env}_billing.gcp_billing_export_v1*` WHERE _TABLE_SUFFIX != '' GROUP BY day, service ORDER BY day"}]}
+  ]
+}

@@ -1,0 +1,32 @@
+# =============================================================================
+# WHAT  : Python deps for the "victim" container only (multi-modal recommender).
+# WHY   : Splitting per-service requirements stops traffic-gen / triage from
+#         carrying torch+transformers (~3GB) for no reason. Per-service files
+#         shrink images 5x and slash build time.
+# HOW   : `pip install -r requirements-victim.txt` inside victim.Dockerfile.
+# LAYMAN: A precise grocery list for ONE robot only - skips ingredients the
+#         other robots don't need.
+# =============================================================================
+
+# --- ML stack (CPU-only) ----------------------------------------------------
+# Pull torch wheels from the CPU-only index. Saves ~2GB vs default GPU wheels.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu                  # neural net core
+transformers==4.45.0              # DistilBERT loader
+numpy==1.26.4                     # math
+scikit-learn==1.5.2               # nearest-neighbour for "similar items"
+
+# --- HTTP serving -----------------------------------------------------------
+fastapi==0.115.4                  # web framework
+uvicorn[standard]==0.32.0         # ASGI server
+pydantic==2.9.2                   # request/response validation
+
+# --- GCP SDKs (read GCS, publish metrics + traces) --------------------------
+google-cloud-storage==2.18.0
+google-cloud-pubsub==2.27.0
+google-cloud-monitoring==2.22.0
+google-cloud-logging==3.11.0
+
+# --- Misc -------------------------------------------------------------------
+PyYAML==6.0.2                     # config files
+tenacity==9.0.0                   # retry-with-backoff helpers

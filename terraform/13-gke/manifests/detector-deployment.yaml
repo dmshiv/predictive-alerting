@@ -1,0 +1,36 @@
+# Detector pods run the per-minute forecast-check worker.
+# This is applied by the Terraform kubernetes provider; this file is for
+# kubectl-based inspection / debugging.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forecast-detector
+  namespace: sentinel
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: forecast-detector }
+  template:
+    metadata:
+      labels: { app: forecast-detector }
+    spec:
+      serviceAccountName: sentinel-forecaster
+      containers:
+        - name: detector
+          image: REPLACED_BY_TERRAFORM/forecaster:latest
+          env:
+            - name: MODE
+              value: "detector"
+            - name: GCP_PROJECT_ID
+              value: "__PROJECT_ID__"
+            - name: GCP_REGION
+              value: "__REGION__"
+            - name: ENV_NAME
+              value: "__ENV_NAME__"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "__PROJECT_ID__"
+            - name: ALERT_COOLDOWN_SECONDS
+              value: "180"
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits:   { cpu: "1",     memory: "1Gi" }

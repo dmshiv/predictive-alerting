@@ -1,0 +1,18 @@
+# WHAT: Roll back the deployed model to the previous version.
+# WHY:  Fastest fix for "model is misbehaving" — if v(N-1) was good, go back.
+runbook_id: rollback_model
+title: Rollback model to previous version
+description: |
+  Switch traffic on the Vertex AI Endpoint from the current model version
+  back to the previous version. Useful when a new model deployment has
+  caused drift or accuracy regression.
+when_to_use:
+  - drift
+  - high
+  - image_embedding_norm
+  - review_token_count
+actions:
+  - "List deployed models on the endpoint:  gcloud ai endpoints list --region=$REGION"
+  - "Identify the previous model version (the one before the current one)"
+  - "Update traffic split:  gcloud ai endpoints update-traffic ENDPOINT --traffic-split=PREVIOUS_DEPLOYED_MODEL_ID=100"
+  - "Verify error rate drops + p99 latency recovers within 5 minutes"
